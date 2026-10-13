@@ -14,5 +14,5 @@ curl -fsS -m 5 "$ALERTMANAGER_URL/api/v2/alerts?active=true&filter=lab%3D%22core
   | "$PYTHON" -c 'import sys,json
 a=json.load(sys.stdin)
 print("  none" if not a else "\n".join("  %-32s %-10s %s"%(x["labels"].get("alertname"),x["labels"].get("severity",""),x["labels"].get("service") or x["labels"].get("pod","")) for x in a))' 2>/dev/null || echo "  alertmanager not reachable"
-echo "== endpoints"; sed -n 's/^CORE1_\(PROMETHEUS\|ALERTMANAGER\|LOKI\|GRAFANA\|GATEWAY\|ALERT_SINK\)_URL=/  \1 /p' "$WORK/endpoints.env" 2>/dev/null || true
+echo "== endpoints"; grep -E '^CORE1_(PROMETHEUS|ALERTMANAGER|LOKI|GRAFANA|GATEWAY|ALERT_SINK)_URL=' "$WORK/endpoints.env" 2>/dev/null | sed -e 's/^CORE1_//' -e 's/_URL=/ /' -e 's/^/  /' || true
 "$PYTHON" "$ROOT/scripts/disk_check.py" --report || true

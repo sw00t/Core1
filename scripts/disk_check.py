@@ -17,7 +17,10 @@ CLUSTER = os.environ.get("CLUSTER_NAME", "core1")
 GB = 1024 ** 3
 
 def run(cmd):
-    return subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return subprocess.CompletedProcess(cmd, 127, "", "docker not available")
 
 def human_to_bytes(s):
     s = (s or "").strip()
