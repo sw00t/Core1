@@ -11,6 +11,11 @@ Reads .work/endpoints.env for paths and URLs. Standard library only.
 """
 import json, os, subprocess, sys, time, urllib.request
 
+try:
+    sys.stdout.reconfigure(line_buffering=True)  # progress shows up in log files as it happens
+except AttributeError:
+    pass
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCENARIOS = json.load(open(os.path.join(ROOT, "scenarios", "scenarios.json")))
 ACTIVE_FILE = os.path.join(ROOT, ".work", "scenario-active.json")

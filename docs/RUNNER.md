@@ -15,7 +15,7 @@ What it does, and nothing else:
 1. Every 3 seconds it looks for `.runner/inbox/*.cmd`. Each file contains one make target name.
 2. If the target is in the allowlist (`doctor bootstrap up down reset status verify verify-quick disk
    endpoints images cluster obs secrets config-repo deploy loadgen agent-kubeconfig wait-green
-   scenario-1..5 diag test`), it runs `make <target>` and writes the output to `.runner/log/<id>.log`
+   scenario-1..5 diag test push`), it runs `make <target>` and writes the output to `.runner/log/<id>.log`
    and the exit code to `.runner/done/<id>.rc`. Anything else is refused.
 3. Before most targets it enforces the disk ceiling (`scripts/disk_check.py --enforce`).
 4. It touches `.runner/heartbeat` every loop and keeps `.runner/state` current.

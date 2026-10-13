@@ -6,7 +6,16 @@
 os=$(host_os); arch=$(host_arch)
 dl="$WORK/dl"; mkdir -p "$dl"
 
-fetch() { curl -fsSL --retry 3 --retry-delay 3 -o "$2" "$1" || die "download failed: $1"; }
+# fetch URL DEST [ALT_URL...]: tries each URL in turn (IPv4 first, then default), with retries.
+fetch() {
+  local dest="$2" url; local urls="$1"; shift 2; urls="$urls $*"
+  for url in $urls; do
+    curl -4 -fsSL --retry 2 --retry-delay 3 --retry-all-errors -o "$dest" "$url" 2>/dev/null && return 0
+    curl -fsSL --retry 2 --retry-delay 3 --retry-all-errors -o "$dest" "$url" && return 0
+    warn "download failed from $url"
+  done
+  die "download failed: $1"
+}
 sha256_of() {
   if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | awk '{print $1}'
   else shasum -a 256 "$1" | awk '{print $1}'; fi
@@ -18,8 +27,15 @@ check_sum() { # file expected
   [ "$got" = "$2" ] || die "checksum mismatch for $1: got $got want $2"
 }
 
+# Escape hatch: point at binaries you already have (e.g. from Homebrew) instead of downloading.
+# Set K3D_BIN / KUBECTL_BIN / HELM_BIN in .env. They are copied into .bin so everything else is unchanged.
+use_existing() { # name path version
+  [ -n "$2" ] || return 1
+  [ -x "$2" ] || die "$1: $2 is not executable"
+  install -m 0755 "$2" "$BIN/$1"; mark "$1" "$3"; log "$1: using $2"
+}
 # k3d
-if have k3d "$K3D_VERSION"; then log "k3d $K3D_VERSION present"; else
+if use_existing k3d "${K3D_BIN:-}" "$K3D_VERSION"; then :; elif have k3d "$K3D_VERSION"; then log "k3d $K3D_VERSION present"; else
   log "downloading k3d $K3D_VERSION ($os/$arch)"
   base="https://github.com/k3d-io/k3d/releases/download/$K3D_VERSION"
   fetch "$base/k3d-$os-$arch" "$dl/k3d"
@@ -31,17 +47,19 @@ if have k3d "$K3D_VERSION"; then log "k3d $K3D_VERSION present"; else
 fi
 
 # kubectl
-if have kubectl "$KUBECTL_VERSION"; then log "kubectl $KUBECTL_VERSION present"; else
+if use_existing kubectl "${KUBECTL_BIN:-}" "$KUBECTL_VERSION"; then :; elif have kubectl "$KUBECTL_VERSION"; then log "kubectl $KUBECTL_VERSION present"; else
   log "downloading kubectl $KUBECTL_VERSION ($os/$arch)"
   base="https://dl.k8s.io/release/$KUBECTL_VERSION/bin/$os/$arch"
-  fetch "$base/kubectl" "$dl/kubectl"
-  fetch "$base/kubectl.sha256" "$dl/kubectl.sha256"
+  alt="https://cdn.dl.k8s.io/release/$KUBECTL_VERSION/bin/$os/$arch"
+  alt2="https://storage.googleapis.com/kubernetes-release/release/$KUBECTL_VERSION/bin/$os/$arch"
+  fetch "$base/kubectl" "$dl/kubectl" "$alt/kubectl" "$alt2/kubectl"
+  fetch "$base/kubectl.sha256" "$dl/kubectl.sha256" "$alt/kubectl.sha256" "$alt2/kubectl.sha256"
   check_sum "$dl/kubectl" "$(tr -d ' \n' < "$dl/kubectl.sha256")"
   install -m 0755 "$dl/kubectl" "$BIN/kubectl"; mark kubectl "$KUBECTL_VERSION"
 fi
 
 # helm
-if have helm "$HELM_VERSION"; then log "helm $HELM_VERSION present"; else
+if use_existing helm "${HELM_BIN:-}" "$HELM_VERSION"; then :; elif have helm "$HELM_VERSION"; then log "helm $HELM_VERSION present"; else
   log "downloading helm $HELM_VERSION ($os/$arch)"
   tgz="helm-$HELM_VERSION-$os-$arch.tar.gz"
   fetch "https://get.helm.sh/$tgz" "$dl/$tgz"

@@ -17,8 +17,8 @@
 #   .runner/state            "idle" or "running <id> <target>"
 . "$(dirname "$0")/lib.sh"
 
-ALLOWED='^(doctor|bootstrap|up|down|reset|status|verify|verify-quick|disk|endpoints|images|cluster|obs|secrets|config-repo|deploy|loadgen|agent-kubeconfig|wait-green|scenario-[1-5]|diag|test)$'
-NO_DISK_GUARD='^(down|disk|status|diag|doctor|endpoints)$'
+ALLOWED='^(doctor|bootstrap|up|down|reset|status|verify|verify-quick|disk|endpoints|images|cluster|obs|secrets|config-repo|deploy|loadgen|agent-kubeconfig|wait-green|scenario-[1-5]|diag|test|push)$'
+NO_DISK_GUARD='^(down|disk|status|diag|doctor|endpoints|push)$'
 R="$ROOT/.runner"
 mkdir -p "$R/inbox" "$R/log" "$R/done"
 

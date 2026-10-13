@@ -6,7 +6,7 @@ N ?= 1
 
 .PHONY: help doctor bootstrap up down reset status verify verify-quick disk endpoints \
         images cluster obs secrets config-repo deploy loadgen agent-kubeconfig wait-green \
-        scenario scenarios scenario-1 scenario-2 scenario-3 scenario-4 scenario-5 diag runner test clean
+        scenario scenarios push scenario-1 scenario-2 scenario-3 scenario-4 scenario-5 diag runner test clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z0-9_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-16s %s\n", $$1, $$2}'
@@ -83,6 +83,9 @@ scenario-5: ; @$(PYTHON) scripts/scenario.py inject 5
 
 diag: ## Collect diagnostics into logs/diag-<timestamp>/
 	@scripts/diag.sh
+
+push: ## Push main to the GitHub remote (uses your own git credentials)
+	@git push origin main
 
 runner: ## Start the unattended runner (executes queued make targets, logs to .runner/)
 	@scripts/runner.sh

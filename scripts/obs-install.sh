@@ -26,6 +26,24 @@ if ! "$HELM" upgrade --install kps "$KPS_CHART_OCI" --version "$KPS_CHART_VERSIO
       || die "helm install of kube-prometheus-stack failed; see logs/helm-kps.log"
 fi
 
+# Some networks block the registry.k8s.io CDN for the cluster node while the host can still pull.
+# Pull such images on the host and import them into the cluster, so the node never has to.
+prepull_via_host() { # image
+  local img="$1"
+  if "$KUBECTL" -n "$NS_OBS" get pods -o jsonpath='{range .items[*].status.containerStatuses[*]}{.image}{" "}{.ready}{"\n"}{end}' 2>/dev/null | grep -q "^$img true"; then return 0; fi
+  log "pre-pulling $img on the host and importing it into the cluster"
+  local plat="linux/$(host_arch)" tar="$WORK/dl/prepull.tar"
+  docker pull -q --platform "$plat" "$img" >/dev/null || { warn "host could not pull $img"; return 1; }
+  # Save a single-platform tar: k3d's import of multi-arch images from Docker's containerd store fails
+  # with "content digest not found" when only one platform is present locally.
+  docker save --platform "$plat" -o "$tar" "$img" 2>/dev/null || docker save -o "$tar" "$img" || { warn "save of $img failed"; return 1; }
+  "$K3D" image import "$tar" -c "$CLUSTER_NAME" >/dev/null || { warn "import of $img failed"; rm -f "$tar"; return 1; }
+  rm -f "$tar"
+  "$KUBECTL" -n "$NS_OBS" delete pod -l app.kubernetes.io/name=kube-state-metrics --ignore-not-found >/dev/null 2>&1 || true
+}
+ksm_image=$("$KUBECTL" -n "$NS_OBS" get deploy -l app.kubernetes.io/name=kube-state-metrics -o jsonpath='{.items[0].spec.template.spec.containers[0].image}' 2>/dev/null || true)
+[ -n "$ksm_image" ] && prepull_via_host "$ksm_image"
+
 log "applying Loki, Alloy, nodeports"
 mkdir -p "$WORK/rendered"
 for f in loki/loki.yaml alloy/alloy.yaml; do
@@ -47,6 +65,7 @@ wait_pods "$NS_OBS" app.kubernetes.io/name=alertmanager 300 >/dev/null || die "a
 wait_pods "$NS_OBS" app.kubernetes.io/name=grafana 420 >/dev/null || die "grafana not ready"
 wait_pods "$NS_OBS" app.kubernetes.io/name=loki 300 >/dev/null || die "loki not ready"
 wait_pods "$NS_OBS" app.kubernetes.io/name=alloy 300 >/dev/null || die "alloy not ready"
+wait_pods "$NS_OBS" app.kubernetes.io/name=kube-state-metrics 420 >/dev/null || die "kube-state-metrics not ready (image pull from registry.k8s.io blocked? see docs/TROUBLESHOOTING.md)"
 
 # CRD-dependent objects go last, once the operator has registered the CRDs.
 "$KUBECTL" apply -n "$NS_OBS" -f "$obs/rules/" >/dev/null

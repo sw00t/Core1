@@ -7,6 +7,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt && useradd -r -u 10001 -d /app app
 COPY core1app ./core1app
+# Build contexts from some tools carry 0600 files; make the app readable by the non-root user regardless.
+RUN chmod -R a+rX /app
 USER 10001
 EXPOSE 8080
 CMD ["python", "-m", "core1app"]

@@ -8,6 +8,11 @@ Writes reports/verify-<timestamp>.md and .json. Exit code 1 if any check failed.
 """
 import argparse, json, os, subprocess, sys, time, urllib.parse, urllib.request, base64
 
+try:
+    sys.stdout.reconfigure(line_buffering=True)  # progress shows up in log files as it happens
+except AttributeError:
+    pass
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 KUBECTL = os.path.join(ROOT, ".bin", "kubectl")
 RESULTS = []
@@ -146,9 +151,10 @@ def c_no_lab_alerts():
 def c_alert_wiring():
     s = http_json(E["CORE1_ALERTMANAGER_URL"] + "/api/v2/status")
     cfg = s.get("config", {}).get("original", "")
-    hooked = E["CORE1_ALERT_WEBHOOK_URL"] in cfg
+    # Alertmanager redacts webhook URLs as <secret>; check the receiver and the lab route instead.
+    hooked = "core1-webhook" in cfg and "webhook_configs" in cfg and 'lab="core1"' in cfg.replace(" ", "")
     st, _ = http(E["CORE1_ALERT_SINK_URL"] + "/healthz")
-    return hooked and st == 200, f"webhook {'configured' if hooked else 'MISSING'} in Alertmanager; alert-sink healthz {st}"
+    return hooked and st == 200, f"lab route to core1-webhook {'configured' if hooked else 'MISSING'} in Alertmanager; alert-sink healthz {st}"
 
 
 def c_grafana():
@@ -209,7 +215,7 @@ def run_scenario(s):
     check(f"scenario {s['id']} expected alert", lambda: (ok, f"after {secs}s active={names}; expected any of {exp['alerts_any_of']}"))
     def sink_got_it():
         got = http_json(E["CORE1_ALERT_SINK_URL"] + "/alerts?limit=50")
-        seen = {n for e in got for n in e.get("alertnames", [])}
+        seen = {a.get("labels", {}).get("alertname") for e in got for a in e.get("firing", [])}
         return any(n in seen for n in exp["alerts_any_of"]), sorted(seen)
     ok2, seen, secs2 = wait_until(sink_got_it, 150, interval=10)
     check(f"scenario {s['id']} webhook delivered", lambda: (ok2, f"after {secs2}s sink saw {seen}"))
