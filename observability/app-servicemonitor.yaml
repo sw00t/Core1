@@ -1,0 +1,20 @@
+# Scrape every Service labelled core1.io/metrics=true in the app and lab namespaces on its "http" port.
+# The target's Kubernetes Service name becomes the "service" label in every metric.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: core1-services
+  labels:
+    app.kubernetes.io/part-of: core1
+    release: kps
+spec:
+  namespaceSelector:
+    matchNames: [core1-app, core1-system]
+  selector:
+    matchLabels:
+      core1.io/metrics: "true"
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s

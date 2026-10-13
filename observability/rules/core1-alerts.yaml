@@ -1,0 +1,81 @@
+# Lab alert rules. Every alert carries lab=core1; Alertmanager routes only those to the webhook.
+# Windows are short (1m) because the lab scrapes every 15s and wants fast feedback.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: core1-app-alerts
+  labels:
+    app.kubernetes.io/part-of: core1
+    release: kps
+spec:
+  groups:
+    - name: core1.app.traffic
+      rules:
+        - alert: Core1HighErrorRate
+          expr: |
+            (
+              sum by (namespace, service) (rate(http_requests_total{namespace="core1-app", status=~"5.."}[1m]))
+              /
+              sum by (namespace, service) (rate(http_requests_total{namespace="core1-app"}[1m]))
+            ) > 0.05
+          for: 1m
+          labels: {lab: core1, severity: critical}
+          annotations:
+            summary: "{{ $labels.service }}: {{ $value | humanizePercentage }} of requests are failing"
+            description: "More than 5% of requests to {{ $labels.service }} in {{ $labels.namespace }} returned 5xx over the last minute."
+        - alert: Core1HighLatencyP95
+          expr: |
+            histogram_quantile(0.95,
+              sum by (namespace, service, le) (rate(http_request_duration_seconds_bucket{namespace="core1-app"}[1m]))
+            ) > 0.5
+          for: 1m
+          labels: {lab: core1, severity: warning}
+          annotations:
+            summary: "{{ $labels.service }}: p95 latency {{ $value | humanizeDuration }}"
+            description: "p95 request latency for {{ $labels.service }} in {{ $labels.namespace }} is above 500ms."
+    - name: core1.app.workloads
+      rules:
+        - alert: Core1PodCrashLooping
+          expr: |
+            max by (namespace, pod, container) (kube_pod_container_status_waiting_reason{namespace="core1-app", reason="CrashLoopBackOff"}) == 1
+          for: 1m
+          labels: {lab: core1, severity: critical}
+          annotations:
+            summary: "{{ $labels.pod }} is crash looping"
+            description: "Container {{ $labels.container }} in pod {{ $labels.pod }} is in CrashLoopBackOff."
+        - alert: Core1ContainerOOMKilled
+          expr: |
+            max by (namespace, pod, container) (kube_pod_container_status_last_terminated_reason{namespace="core1-app", reason="OOMKilled"}) == 1
+            and on (namespace, pod, container)
+            increase(kube_pod_container_status_restarts_total{namespace="core1-app"}[10m]) > 0
+          for: 0m
+          labels: {lab: core1, severity: critical}
+          annotations:
+            summary: "{{ $labels.pod }} was OOM killed"
+            description: "Container {{ $labels.container }} in pod {{ $labels.pod }} was killed for exceeding its memory limit and has restarted."
+        - alert: Core1ImagePullFailing
+          expr: |
+            max by (namespace, pod, container) (kube_pod_container_status_waiting_reason{namespace="core1-app", reason=~"ImagePullBackOff|ErrImagePull|InvalidImageName"}) == 1
+          for: 1m
+          labels: {lab: core1, severity: critical}
+          annotations:
+            summary: "{{ $labels.pod }} cannot pull its image"
+            description: "Container {{ $labels.container }} in pod {{ $labels.pod }} is waiting on an image pull failure."
+        - alert: Core1PodNotReady
+          expr: |
+            sum by (namespace, pod) (kube_pod_status_ready{namespace="core1-app", condition="false"}) == 1
+            and on (namespace, pod)
+            sum by (namespace, pod) (kube_pod_status_phase{namespace="core1-app", phase="Running"}) == 1
+          for: 2m
+          labels: {lab: core1, severity: warning}
+          annotations:
+            summary: "{{ $labels.pod }} is running but not ready"
+            description: "Pod {{ $labels.pod }} has been Running without passing its readiness probe for 2 minutes."
+        - alert: Core1DeploymentReplicasUnavailable
+          expr: |
+            kube_deployment_status_replicas_unavailable{namespace="core1-app"} > 0
+          for: 3m
+          labels: {lab: core1, severity: warning}
+          annotations:
+            summary: "{{ $labels.deployment }} has {{ $value }} unavailable replica(s)"
+            description: "Deployment {{ $labels.deployment }} in {{ $labels.namespace }} has had unavailable replicas for 3 minutes; a rollout may be stuck."

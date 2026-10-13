@@ -1,0 +1,468 @@
+# Provisioned through the Grafana sidecar (label grafana_dashboard=1). Generated; edit scripts to change.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: core1-dashboard-services
+  labels:
+    grafana_dashboard: "1"
+    app.kubernetes.io/part-of: core1
+data:
+  core1-services.json: |
+    {
+      "uid": "core1-services",
+      "title": "Core1 / Shop services",
+      "tags": [
+        "core1"
+      ],
+      "timezone": "browser",
+      "schemaVersion": 39,
+      "version": 1,
+      "refresh": "15s",
+      "time": {
+        "from": "now-30m",
+        "to": "now"
+      },
+      "editable": true,
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "Request rate by service",
+          "gridPos": {
+            "x": 0,
+            "y": 0,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (service) (rate(http_requests_total{namespace=\"core1-app\"}[1m]))",
+              "legendFormat": "{{service}}"
+            }
+          ],
+          "id": 1
+        },
+        {
+          "type": "timeseries",
+          "title": "5xx ratio by service",
+          "gridPos": {
+            "x": 12,
+            "y": 0,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 10,
+                "thresholdsStyle": {
+                  "mode": "line"
+                }
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.05
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (service) (rate(http_requests_total{namespace=\"core1-app\", status=~\"5..\"}[1m])) / sum by (service) (rate(http_requests_total{namespace=\"core1-app\"}[1m]))",
+              "legendFormat": "{{service}}"
+            }
+          ],
+          "id": 2
+        },
+        {
+          "type": "timeseries",
+          "title": "p95 latency by service",
+          "gridPos": {
+            "x": 0,
+            "y": 8,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 10,
+                "thresholdsStyle": {
+                  "mode": "line"
+                }
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.5
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "histogram_quantile(0.95, sum by (service, le) (rate(http_request_duration_seconds_bucket{namespace=\"core1-app\"}[1m])))",
+              "legendFormat": "{{service}}"
+            }
+          ],
+          "id": 3
+        },
+        {
+          "type": "timeseries",
+          "title": "Upstream call outcomes",
+          "gridPos": {
+            "x": 12,
+            "y": 8,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "reqps",
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (service, upstream, outcome) (rate(upstream_requests_total{namespace=\"core1-app\"}[1m]))",
+              "legendFormat": "{{service}} -> {{upstream}} {{outcome}}"
+            }
+          ],
+          "id": 4
+        },
+        {
+          "type": "timeseries",
+          "title": "Orders DB pool: in use vs max",
+          "gridPos": {
+            "x": 0,
+            "y": 16,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (pod) (db_pool_connections_in_use{namespace=\"core1-app\"})",
+              "legendFormat": "{{pod}} in use"
+            },
+            {
+              "refId": "B",
+              "expr": "max(db_pool_max_connections{namespace=\"core1-app\"})",
+              "legendFormat": "max per pod"
+            }
+          ],
+          "id": 5
+        },
+        {
+          "type": "timeseries",
+          "title": "Container restarts (5m)",
+          "gridPos": {
+            "x": 12,
+            "y": 16,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (pod) (increase(kube_pod_container_status_restarts_total{namespace=\"core1-app\"}[5m]))",
+              "legendFormat": "{{pod}}"
+            }
+          ],
+          "id": 6
+        },
+        {
+          "type": "timeseries",
+          "title": "Deployment replicas: available vs desired",
+          "gridPos": {
+            "x": 0,
+            "y": 24,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "kube_deployment_status_replicas_available{namespace=\"core1-app\"}",
+              "legendFormat": "{{deployment}} available"
+            },
+            {
+              "refId": "B",
+              "expr": "kube_deployment_spec_replicas{namespace=\"core1-app\"}",
+              "legendFormat": "{{deployment}} desired"
+            }
+          ],
+          "id": 7
+        },
+        {
+          "type": "timeseries",
+          "title": "Pods not ready",
+          "gridPos": {
+            "x": 12,
+            "y": 24,
+            "w": 12,
+            "h": 8
+          },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "lineWidth": 1,
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            },
+            "tooltip": {
+              "mode": "multi"
+            }
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "sum by (pod) (kube_pod_status_ready{namespace=\"core1-app\", condition=\"false\"})",
+              "legendFormat": "{{pod}}"
+            }
+          ],
+          "id": 8
+        },
+        {
+          "type": "logs",
+          "title": "Deploy events",
+          "gridPos": {
+            "x": 0,
+            "y": 32,
+            "w": 24,
+            "h": 7
+          },
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "options": {
+            "showTime": true,
+            "wrapLogMessage": true,
+            "sortOrder": "Descending"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "{job=\"deploy-events\"}"
+            }
+          ],
+          "id": 9
+        },
+        {
+          "type": "logs",
+          "title": "Service errors (5xx and upstream failures)",
+          "gridPos": {
+            "x": 0,
+            "y": 39,
+            "w": 24,
+            "h": 10
+          },
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "options": {
+            "showTime": true,
+            "wrapLogMessage": true,
+            "sortOrder": "Descending"
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "{namespace=\"core1-app\"} |= \"\\\"level\\\": \\\"error\\\"\""
+            }
+          ],
+          "id": 10
+        }
+      ],
+      "templating": {
+        "list": []
+      },
+      "annotations": {
+        "list": [
+          {
+            "name": "Deploys",
+            "datasource": {
+              "type": "loki",
+              "uid": "loki"
+            },
+            "enable": true,
+            "expr": "{job=\"deploy-events\"}",
+            "iconColor": "blue",
+            "titleFormat": "deploy"
+          }
+        ]
+      }
+    }

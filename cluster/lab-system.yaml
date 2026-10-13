@@ -1,0 +1,79 @@
+# Lab plumbing (core1-system): synthetic load and the default alert sink. Rendered by scripts/loadgen.sh.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loadgen
+  labels: {app.kubernetes.io/name: loadgen, app.kubernetes.io/part-of: core1}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: loadgen}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: loadgen, app.kubernetes.io/part-of: core1}
+    spec:
+      containers:
+        - name: loadgen
+          image: core1.local/loadgen:__APP_VERSION__
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: TARGET_URL, value: "http://gateway.__NS_APP__.svc:8080"}
+            - {name: LOAD_RPS, value: "__LOAD_RPS__"}
+            - {name: LOG_LEVEL, value: info}
+          ports:
+            - {name: http, containerPort: 8080}
+          readinessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 100m, memory: 64Mi}
+            limits: {memory: 256Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: loadgen
+  labels: {app.kubernetes.io/name: loadgen, app.kubernetes.io/part-of: core1, core1.io/metrics: "true"}
+spec:
+  selector: {app.kubernetes.io/name: loadgen}
+  ports:
+    - {name: http, port: 8080, targetPort: 8080}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alert-sink
+  labels: {app.kubernetes.io/name: alert-sink, app.kubernetes.io/part-of: core1}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: alert-sink}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: alert-sink, app.kubernetes.io/part-of: core1}
+    spec:
+      containers:
+        - name: alert-sink
+          image: core1.local/alert-sink:__APP_VERSION__
+          imagePullPolicy: IfNotPresent
+          env:
+            - {name: LOG_LEVEL, value: info}
+          ports:
+            - {name: http, containerPort: 8080}
+          readinessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 20m, memory: 48Mi}
+            limits: {memory: 128Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alert-sink
+  labels: {app.kubernetes.io/name: alert-sink, app.kubernetes.io/part-of: core1, core1.io/metrics: "true"}
+spec:
+  type: NodePort
+  selector: {app.kubernetes.io/name: alert-sink}
+  ports:
+    - {name: http, port: 8080, targetPort: 8080, nodePort: 30081}

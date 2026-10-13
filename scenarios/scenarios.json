@@ -1,0 +1,113 @@
+[
+  {
+    "id": 1,
+    "name": "orders-memory-limit",
+    "title": "Memory limit set too low on orders",
+    "kind": "config-change",
+    "commit": {
+      "message": "orders: right-size memory per FinOps review\n\nRequests and limits aligned to the 30-day usage report.",
+      "author": "Dana Whitfield <dana.whitfield@example.com>"
+    },
+    "edits": [
+      {"file": "overlays/prod/patches/orders-resources.yaml", "find": "memory: 96Mi", "replace": "memory: 24Mi"},
+      {"file": "overlays/prod/patches/orders-resources.yaml", "find": "memory: 256Mi", "replace": "memory: 32Mi"}
+    ],
+    "expected": {
+      "root_cause": "The orders memory limit was lowered from 256Mi to 32Mi, below what the process needs to start. New pods are OOM killed on startup and crash loop; the rollout never completes.",
+      "fix": "Revert the resources patch for orders (limits back to 256Mi, requests to 96Mi) and redeploy.",
+      "changed_files": ["overlays/prod/patches/orders-resources.yaml"],
+      "workload": "deployment/orders",
+      "alerts_any_of": ["Core1ContainerOOMKilled", "Core1PodCrashLooping"],
+      "alerts_eventually": ["Core1DeploymentReplicasUnavailable"],
+      "user_impact": "None expected: the rolling update keeps the old pods serving while the new ones fail.",
+      "detect_within_s": 360
+    }
+  },
+  {
+    "id": 2,
+    "name": "inventory-bad-image-tag",
+    "title": "Image tag that was never built",
+    "kind": "config-change",
+    "commit": {
+      "message": "inventory: bump to 1.0.1\n\nPicks up the restock scheduler fix.",
+      "author": "Marcus Oyelaran <marcus.oyelaran@example.com>"
+    },
+    "edits": [
+      {"file": "overlays/prod/kustomization.yaml", "find": "  - name: core1.local/inventory\n    newTag: 1.0.0", "replace": "  - name: core1.local/inventory\n    newTag: 1.0.1"}
+    ],
+    "expected": {
+      "root_cause": "The inventory image tag was changed to 1.0.1, which does not exist in the registry. New pods sit in ImagePullBackOff and the rollout is stuck.",
+      "fix": "Set the inventory image tag back to 1.0.0 in overlays/prod/kustomization.yaml (or publish 1.0.1) and redeploy.",
+      "changed_files": ["overlays/prod/kustomization.yaml"],
+      "workload": "deployment/inventory",
+      "alerts_any_of": ["Core1ImagePullFailing"],
+      "alerts_eventually": ["Core1DeploymentReplicasUnavailable"],
+      "user_impact": "None expected: old pods keep serving.",
+      "detect_within_s": 360
+    }
+  },
+  {
+    "id": 3,
+    "name": "gateway-readiness-path",
+    "title": "Readiness probe pointed at a path that does not exist",
+    "kind": "config-change",
+    "commit": {
+      "message": "gateway: align health endpoints with platform standard\n\nPlatform guidance says readiness lives under /health/ready.",
+      "author": "Priya Natarajan <priya.natarajan@example.com>"
+    },
+    "edits": [
+      {"file": "base/gateway.yaml", "find": "          readinessProbe:\n            httpGet:\n              path: /healthz", "replace": "          readinessProbe:\n            httpGet:\n              path: /health/ready"}
+    ],
+    "expected": {
+      "root_cause": "The gateway readiness probe path was changed to /health/ready, which the service does not serve (404). New pods run but never become Ready, so the rollout is stuck.",
+      "fix": "Restore the readiness path to /healthz in base/gateway.yaml and redeploy.",
+      "changed_files": ["base/gateway.yaml"],
+      "workload": "deployment/gateway",
+      "alerts_any_of": ["Core1PodNotReady"],
+      "alerts_eventually": ["Core1DeploymentReplicasUnavailable"],
+      "user_impact": "None expected: old pods keep serving.",
+      "detect_within_s": 420
+    }
+  },
+  {
+    "id": 4,
+    "name": "orders-db-pool-size",
+    "title": "Database pool capped at one connection",
+    "kind": "config-change",
+    "commit": {
+      "message": "orders: cap db pool to stay within connection budget\n\nDBA asked for per-pod caps ahead of the Postgres consolidation.",
+      "author": "Tomasz Weber <tomasz.weber@example.com>"
+    },
+    "edits": [
+      {"file": "overlays/prod/config/orders.env", "find": "DB_POOL_MAX=10", "replace": "DB_POOL_MAX=1"}
+    ],
+    "expected": {
+      "root_cause": "DB_POOL_MAX for orders was set to 1. The pods roll (new ConfigMap hash) and come up healthy, then requests queue for the single connection, time out after 1s and fail with 503. Error rate and latency rise on orders and on the gateway.",
+      "fix": "Restore DB_POOL_MAX=10 in overlays/prod/config/orders.env and redeploy.",
+      "changed_files": ["overlays/prod/config/orders.env"],
+      "workload": "deployment/orders",
+      "alerts_any_of": ["Core1HighErrorRate", "Core1HighLatencyP95"],
+      "alerts_eventually": [],
+      "user_impact": "Yes: a large share of order creates and reads fail.",
+      "detect_within_s": 360
+    }
+  },
+  {
+    "id": 5,
+    "name": "inventory-slow-dependency",
+    "title": "Decoy: inventory slows down with no change anywhere",
+    "kind": "runtime-fault",
+    "fault": {"target": "inventory", "latency_ms": 700, "error_rate": 0.0},
+    "expected": {
+      "root_cause": "Inventory responses slowed to about 700ms through a runtime condition (simulated noisy neighbour). No commit, no deploy, no config change correlates with the alert.",
+      "fix": "No config change is appropriate. Escalate with evidence: latency rose on inventory first, then on orders and gateway; no deploy event or commit in the window.",
+      "changed_files": [],
+      "workload": "deployment/inventory",
+      "alerts_any_of": ["Core1HighLatencyP95"],
+      "alerts_eventually": [],
+      "user_impact": "Slow but working.",
+      "no_change": true,
+      "detect_within_s": 300
+    }
+  }
+]

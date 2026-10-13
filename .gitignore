@@ -1,0 +1,13 @@
+# local state (never committed)
+.env
+.bin/
+.work/
+.kube/
+logs/
+.runner/
+reports/*.json
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+.DS_Store

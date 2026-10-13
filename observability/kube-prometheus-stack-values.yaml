@@ -1,0 +1,128 @@
+# kube-prometheus-stack values for the Core1 lab. Placeholders (__X__) are filled by scripts/obs-install.sh.
+# Kept close to defaults. Components k3s does not expose (etcd, scheduler, controller-manager, kube-proxy)
+# are disabled so their "down" alerts do not fire as false positives.
+fullnameOverride: kps
+
+crds:
+  enabled: true
+
+defaultRules:
+  create: true
+  rules:
+    etcd: false
+    kubeControllerManager: false
+    kubeProxy: false
+    kubeSchedulerAlerting: false
+    kubeSchedulerRecording: false
+    windows: false
+
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+kubeEtcd:
+  enabled: false
+windowsMonitoring:
+  enabled: false
+
+prometheusOperator:
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {memory: 384Mi}
+
+prometheus:
+  prometheusSpec:
+    scrapeInterval: 15s
+    evaluationInterval: 15s
+    retention: 24h
+    retentionSize: 2GB
+    # Pick up every ServiceMonitor / PrometheusRule in the cluster, not only the chart's own.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    probeSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    scrapeConfigSelectorNilUsesHelmValues: false
+    resources:
+      requests: {cpu: 200m, memory: 512Mi}
+      limits: {memory: 1536Mi}
+    storageSpec:
+      emptyDir:
+        sizeLimit: 3Gi
+
+alertmanager:
+  alertmanagerSpec:
+    retention: 24h
+    resources:
+      requests: {cpu: 20m, memory: 64Mi}
+      limits: {memory: 256Mi}
+  config:
+    global:
+      resolve_timeout: 2m
+    inhibit_rules:
+      - source_matchers: ['severity = critical']
+        target_matchers: ['severity =~ warning|info']
+        equal: ['namespace', 'alertname']
+      - source_matchers: ['severity = warning']
+        target_matchers: ['severity = info']
+        equal: ['namespace', 'alertname']
+      - source_matchers: ['alertname = InfoInhibitor']
+        target_matchers: ['severity = info']
+        equal: ['namespace']
+      - target_matchers: ['alertname = InfoInhibitor']
+    route:
+      receiver: 'null'
+      group_by: ['namespace']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      routes:
+        # Lab alerts: one grouped notification per namespace, refreshed as alerts join or resolve.
+        - receiver: core1-webhook
+          matchers: ['lab = "core1"']
+          group_by: ['namespace']
+          group_wait: 20s
+          group_interval: 1m
+          repeat_interval: 4h
+          continue: false
+        - receiver: 'null'
+          matchers: ['alertname = "Watchdog"']
+    receivers:
+      - name: 'null'
+      - name: core1-webhook
+        webhook_configs:
+          - url: __ALERT_WEBHOOK_URL__
+            send_resolved: true
+            max_alerts: 50
+    templates:
+      - '/etc/alertmanager/config/*.tmpl'
+
+grafana:
+  adminPassword: __GRAFANA_ADMIN_PASSWORD__
+  defaultDashboardsTimezone: browser
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {memory: 512Mi}
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      uid: loki
+      access: proxy
+      url: http://loki.__NS_OBS__.svc:3100
+      isDefault: false
+      editable: true
+  sidecar:
+    dashboards:
+      enabled: true
+      searchNamespace: ALL
+
+kube-state-metrics:
+  resources:
+    requests: {cpu: 20m, memory: 64Mi}
+    limits: {memory: 256Mi}
+
+prometheus-node-exporter:
+  resources:
+    requests: {cpu: 20m, memory: 32Mi}
+    limits: {memory: 128Mi}
