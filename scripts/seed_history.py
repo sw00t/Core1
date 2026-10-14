@@ -28,6 +28,8 @@ def commit(message, author, days_ago):
     git("commit", "-q", "-m", message, env=env)
 
 git("init", "-q")
+git("config", "core.fileMode", "false")
+git("update-index", "--add", "--chmod=+x", "deploy.sh") if False else None
 # walk back to the initial state
 for e in reversed(seed["edits"]):
     for c in reversed(e["changes"]):

@@ -7,6 +7,9 @@ if [ -d "$CONFIG_REPO/.git" ] && (cd "$CONFIG_REPO" && git rev-parse -q --verify
 fi
 rm -rf "$CONFIG_REPO"; mkdir -p "$(dirname "$CONFIG_REPO")"
 cp -R "$ROOT/config-repo-template" "$CONFIG_REPO"
+chmod +x "$CONFIG_REPO/deploy.sh"
+# file modes vary across sync tools and sandboxes; git should not treat a mode flip as a change here
+( cd "$CONFIG_REPO" && git init -q && git config core.fileMode false )
 "$PYTHON" "$ROOT/scripts/seed_history.py" "$CONFIG_REPO" "$ROOT/config-repo-seed/history.json"
 log "config repo initialized at $CONFIG_REPO"
 (cd "$CONFIG_REPO" && git log --oneline)
