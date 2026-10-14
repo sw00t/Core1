@@ -14,9 +14,9 @@ if [ -x "$K3D" ] && cluster_exists && [ -f "$KUBECONFIG" ]; then
   "$KUBECTL" get all -A -o wide > "$out/all.txt" 2>&1
   "$KUBECTL" top pods -A >> "$out/all.txt" 2>&1 || true
   "$KUBECTL" get events -A --sort-by=.lastTimestamp 2>&1 | tail -150 > "$out/events.txt"
-  "$KUBECTL" get pods -A --no-headers 2>/dev/null | awk '$4 != "Running" && $4 != "Completed" || $2 !~ /^([0-9]+)\/\1$/ {print $1" "$2}' | while read -r ns pod; do
+  "$KUBECTL" get pods -A --no-headers 2>/dev/null | awk '{ split($2, r, "/"); if (($4 != "Running" && $4 != "Completed") || r[1] != r[2] || $5+0 > 0) print $1" "$2 }' | while read -r ns pod; do
     [ -n "$pod" ] || continue
-    { "$KUBECTL" -n "$ns" describe pod "$pod"; echo "---- logs (tail 80)"; "$KUBECTL" -n "$ns" logs "$pod" --all-containers --tail=80; echo "---- previous"; "$KUBECTL" -n "$ns" logs "$pod" --all-containers --tail=40 --previous; } > "$out/pod-$ns-$pod.txt" 2>&1
+    { "$KUBECTL" -n "$ns" describe pod "$pod" || true; echo "---- logs (tail 80)"; "$KUBECTL" -n "$ns" logs "$pod" --all-containers --tail=80 || true; echo "---- previous"; "$KUBECTL" -n "$ns" logs "$pod" --all-containers --tail=40 --previous || true; } > "$out/pod-$ns-$pod.txt" 2>&1 || true
   done
   "$HELM" list -A > "$out/helm.txt" 2>&1 || true
   "$KUBECTL" -n "$NS_OBS" get prometheusrules,servicemonitors,prometheus,alertmanager -o wide > "$out/operator-objects.txt" 2>&1 || true
