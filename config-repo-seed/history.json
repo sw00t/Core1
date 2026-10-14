@@ -1,13 +1,13 @@
 {
   "_comment": "Benign commit history seeded into the config repo so it looks lived-in. Edits are listed in the order they were made; the template holds the final (baseline) state, so init applies them in reverse to build the initial commit, then replays them forward.",
   "initial": {
-    "message": "Initial import of shop platform manifests\n\nMigrated from the legacy Helm chart. Kustomize base plus a prod overlay.",
+    "message": "Initial import of activation platform manifests\n\nMigrated from the legacy Helm chart. Kustomize base plus a prod overlay.",
     "author": "Priya Natarajan <priya.natarajan@example.com>",
     "days_ago": 14
   },
   "edits": [
     {
-      "message": "gateway: raise upstream timeout to 2s\n\nCheckout latency review showed p99 orders calls at 1.4s during the Tuesday batch; 1.5s left no headroom.",
+      "message": "gateway: raise upstream timeout to 2s\n\nActivation latency review showed p99 orders calls at 1.4s during the Tuesday number-port batch; 1.5s left no headroom.",
       "author": "Marcus Oyelaran <marcus.oyelaran@example.com>",
       "days_ago": 9,
       "changes": [
@@ -15,7 +15,7 @@
       ]
     },
     {
-      "message": "inventory: run two replicas\n\nSingle replica meant every rollout was a brief outage for product listing.",
+      "message": "inventory: run two replicas\n\nSingle replica meant every rollout was a brief outage for the plan catalogue and SIM lookups.",
       "author": "Dana Whitfield <dana.whitfield@example.com>",
       "days_ago": 6,
       "changes": [
@@ -23,7 +23,7 @@
       ]
     },
     {
-      "message": "orders: raise db pool to 10 per DBA sizing\n\nPool of 5 saturated during the flash sale. DBA confirmed 10 per pod fits the connection budget.",
+      "message": "orders: raise db pool to 10 per DBA sizing\n\nPool of 5 saturated during the device launch weekend. DBA confirmed 10 per pod fits the connection budget.",
       "author": "Tomasz Weber <tomasz.weber@example.com>",
       "days_ago": 3,
       "changes": [

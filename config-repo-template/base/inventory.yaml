@@ -4,7 +4,7 @@ metadata:
   name: inventory
   labels:
     app.kubernetes.io/name: inventory
-    app.kubernetes.io/part-of: shop
+    app.kubernetes.io/part-of: activation-platform
 spec:
   replicas: 1
   selector:
@@ -14,7 +14,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: inventory
-        app.kubernetes.io/part-of: shop
+        app.kubernetes.io/part-of: activation-platform
     spec:
       containers:
         - name: inventory
@@ -45,7 +45,7 @@ metadata:
   name: inventory
   labels:
     app.kubernetes.io/name: inventory
-    app.kubernetes.io/part-of: shop
+    app.kubernetes.io/part-of: activation-platform
     core1.io/metrics: "true"
 spec:
   selector:

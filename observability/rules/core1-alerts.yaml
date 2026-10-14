@@ -9,6 +9,12 @@ metadata:
     release: kps
 spec:
   groups:
+    - name: cascadia.activations.recording
+      rules:
+        - record: cascadia:activations_per_min
+          expr: sum(rate(http_requests_total{namespace="core1-app", service="gateway", route="/api/orders", method="POST"}[2m])) * 60
+        - record: cascadia:failed_activations_per_min
+          expr: sum(rate(http_requests_total{namespace="core1-app", service="gateway", route="/api/orders", method="POST", status=~"5.."}[2m])) * 60
     - name: core1.app.traffic
       rules:
         - alert: Core1HighErrorRate

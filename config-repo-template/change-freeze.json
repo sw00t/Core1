@@ -1,0 +1,6 @@
+{
+  "_comment": "Change freeze windows, UTC. Inside a window only emergency changes may merge, with the named approver.",
+  "windows": [
+    {"name": "Q4 device launch weekend", "start": "2026-11-20T00:00:00Z", "end": "2026-11-23T23:59:59Z", "approver": "Head of Service Operations"}
+  ]
+}

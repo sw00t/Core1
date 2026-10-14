@@ -10,7 +10,7 @@ data:
   core1-services.json: |
     {
       "uid": "core1-services",
-      "title": "Core1 / Shop services",
+      "title": "Cascadia Mobile / Activation platform",
       "tags": [
         "core1"
       ],

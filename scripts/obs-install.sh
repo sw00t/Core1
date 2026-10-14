@@ -13,7 +13,7 @@ src, dst = sys.argv[1], sys.argv[2]
 s = open(src).read()
 s = s.replace("__ALERT_WEBHOOK_URL__", os.environ["ALERT_WEBHOOK_URL"])
 s = s.replace("__GRAFANA_ADMIN_PASSWORD__", os.environ["GRAFANA_ADMIN_PASSWORD"])
-s = s.replace("__NS_OBS__", os.environ["NS_OBS"])
+s = s.replace("__NS_OBS__", os.environ["NS_OBS"]).replace("__NS_SYS__", os.environ["NS_SYS"])
 open(dst, "w").write(s)
 PY
 

@@ -16,7 +16,7 @@ Run the chain locally without Kubernetes (orders uses an in-memory store with `D
 CORE1_SERVICE=inventory PORT=8083 python -m core1app &
 CORE1_SERVICE=orders PORT=8082 DB_DSN=memory:// INVENTORY_URL=http://127.0.0.1:8083 python -m core1app &
 CORE1_SERVICE=gateway PORT=8081 ORDERS_URL=http://127.0.0.1:8082 INVENTORY_URL=http://127.0.0.1:8083 python -m core1app &
-curl -s -X POST localhost:8081/api/orders -H 'content-type: application/json' -d '{"sku":"SKU-0005","qty":2}'
+curl -s -X POST localhost:8081/api/orders -H 'content-type: application/json' -d '{"plan":"PLAN-005","qty":1,"channel":"retail"}'
 ```
 
 Conventions:

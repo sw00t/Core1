@@ -12,19 +12,19 @@ def client():
 def test_stock_and_reserve():
     with client() as c:
         r = c.get("/stock")
-        assert r.status_code == 200 and len(r.json()["items"]) == 24
-        before = c.get("/stock/SKU-0001").json()["available"]
-        r = c.post("/reserve", json={"sku": "SKU-0001", "qty": 3})
+        assert r.status_code == 200 and len(r.json()["items"]) == 12
+        before = c.get("/stock/PLAN-001").json()["sims_available"]
+        r = c.post("/reserve", json={"plan": "PLAN-001", "qty": 3})
         assert r.status_code == 200 and r.json()["remaining"] == before - 3
-        assert c.post("/reserve", json={"sku": "NOPE", "qty": 1}).status_code == 404
-        assert c.post("/reserve", json={"sku": "SKU-0002", "qty": 0}).status_code == 422
+        assert c.post("/reserve", json={"plan": "NOPE", "qty": 1}).status_code == 404
+        assert c.post("/reserve", json={"plan": "PLAN-002", "qty": 0}).status_code == 422
 
 
 def test_insufficient_stock():
     with client() as c:
-        inventory.STOCK["SKU-0003"] = 1
-        assert c.post("/reserve", json={"sku": "SKU-0003", "qty": 2}).status_code == 409
-        inventory.STOCK["SKU-0003"] = 100000
+        inventory.STOCK["PLAN-003"] = 1
+        assert c.post("/reserve", json={"plan": "PLAN-003", "qty": 2}).status_code == 409
+        inventory.STOCK["PLAN-003"] = 100000
 
 
 def test_fault_switch_adds_latency_and_errors():

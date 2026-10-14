@@ -1,4 +1,4 @@
-"""Orders: reserves stock with inventory, then records the order in Postgres.
+"""Orders: activation orders. Reserves a SIM and number with inventory, then records the order in Postgres.
 
 DB_DSN=memory:// swaps in an in-memory store for local development and tests.
 DB_QUERY_COST_MS adds a fixed pg_sleep per query so pool pressure is visible at lab scale.
@@ -30,8 +30,9 @@ POOL_MAX.set(DB_POOL_MAX)
 
 
 class NewOrder(BaseModel):
-    sku: str = Field(min_length=1, max_length=64)
+    plan: str = Field(min_length=1, max_length=64)
     qty: int = Field(ge=1, le=100)
+    channel: str = Field(default="app", max_length=32)
 
 
 class MemoryStore:
@@ -58,12 +59,12 @@ class MemoryStore:
         self.sem.release()
         POOL_IN_USE.set(DB_POOL_MAX - self.sem._value)
 
-    async def create_order(self, sku, qty):
+    async def create_order(self, plan, qty, iccid, msisdn, channel):
         await self._acquire()
         try:
             await self._cost()
             oid = next(self.ids)
-            self.rows[oid] = {"id": oid, "sku": sku, "qty": qty, "status": "confirmed"}
+            self.rows[oid] = {"id": oid, "plan": plan, "qty": qty, "iccid": iccid, "msisdn": msisdn, "channel": channel, "status": "activated"}
             return self.rows[oid]
         finally:
             self._release()
@@ -91,8 +92,10 @@ class PgStore:
                                               command_timeout=10)
         async with self.pool.acquire() as conn:
             await conn.execute(
-                "CREATE TABLE IF NOT EXISTS orders (id BIGSERIAL PRIMARY KEY, sku TEXT NOT NULL, "
+                "CREATE TABLE IF NOT EXISTS orders (id BIGSERIAL PRIMARY KEY, plan TEXT NOT NULL, "
                 "qty INT NOT NULL, status TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())")
+            await conn.execute("ALTER TABLE orders ADD COLUMN IF NOT EXISTS iccid TEXT, ADD COLUMN IF NOT EXISTS msisdn TEXT, "
+                               "ADD COLUMN IF NOT EXISTS channel TEXT")
         return True
 
     def _gauge(self):
@@ -103,14 +106,14 @@ class PgStore:
         if DB_QUERY_COST_MS:
             await conn.execute("SELECT pg_sleep($1)", DB_QUERY_COST_MS / 1000.0)
 
-    async def create_order(self, sku, qty):
+    async def create_order(self, plan, qty, iccid, msisdn, channel):
         async with self.pool.acquire(timeout=DB_POOL_ACQUIRE_TIMEOUT_MS / 1000.0) as conn:
             self._gauge()
             try:
                 await self._cost(conn)
                 row = await conn.fetchrow(
-                    "INSERT INTO orders (sku, qty, status) VALUES ($1, $2, 'confirmed') RETURNING id, sku, qty, status",
-                    sku, qty)
+                    "INSERT INTO orders (plan, qty, iccid, msisdn, channel, status) VALUES ($1, $2, $3, $4, $5, 'activated') "
+                    "RETURNING id, plan, qty, iccid, msisdn, channel, status", plan, qty, iccid, msisdn, channel)
                 return dict(row)
             finally:
                 self._gauge()
@@ -120,7 +123,7 @@ class PgStore:
             self._gauge()
             try:
                 await self._cost(conn)
-                row = await conn.fetchrow("SELECT id, sku, qty, status FROM orders WHERE id = $1", oid)
+                row = await conn.fetchrow("SELECT id, plan, qty, iccid, msisdn, channel, status FROM orders WHERE id = $1", oid)
                 return dict(row) if row else None
             finally:
                 self._gauge()
@@ -184,12 +187,14 @@ async def create_order(order: NewOrder, request: Request):
         raise HTTPError(503, "database not ready")
     resp = await call_upstream(request.app.state.http, "inventory", "POST", f"{INVENTORY_URL}/reserve",
                                timeout_ms=INVENTORY_TIMEOUT_MS, trace_id=request.state.trace_id,
-                               json_body={"sku": order.sku, "qty": order.qty}, ok_statuses=(200,))
+                               json_body={"plan": order.plan, "qty": order.qty}, ok_statuses=(200,))
     if resp.status_code >= 400:
         detail = (resp.json() or {}).get("error", "reservation rejected") if resp.content else "reservation rejected"
         raise HTTPError(resp.status_code, detail)
-    row = await db_guard(request.app.state.store.create_order(order.sku, order.qty))
-    log.info("order created", extra={"order_id": row["id"], "sku": order.sku, "qty": order.qty, "trace_id": request.state.trace_id})
+    res = resp.json()
+    row = await db_guard(request.app.state.store.create_order(order.plan, order.qty, res.get("iccid"), res.get("msisdn"), order.channel))
+    log.info("activation order created", extra={"order_id": row["id"], "plan": order.plan, "channel": order.channel,
+                                               "iccid": row.get("iccid"), "msisdn": row.get("msisdn"), "trace_id": request.state.trace_id})
     return row
 
 

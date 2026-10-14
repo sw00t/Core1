@@ -39,7 +39,7 @@ for line in $after; do
 done
 changed="${changed# }"
 for w in $changed; do
-  "$KUBECTL" -n "$NS" annotate "$w" "kubernetes.io/change-cause=$short $subject" "shop.example.com/git-sha=$sha" --overwrite >/dev/null
+  "$KUBECTL" -n "$NS" annotate "$w" "kubernetes.io/change-cause=$short $subject" "cascadia.example/git-sha=$sha" --overwrite >/dev/null
 done
 echo "deploy: changed workloads: ${changed:-none}"
 
@@ -50,7 +50,7 @@ url, ns, sha, short, subject, author, committed, files, changed, branch = sys.ar
 event = {"event": "deploy", "namespace": ns, "git_sha": sha, "git_short": short, "subject": subject, "author": author,
          "committed_at": committed, "deployed_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
          "branch": branch, "changed_files": files.split(), "changed_workloads": changed.split()}
-body = {"streams": [{"stream": {"job": "deploy-events", "namespace": ns, "repo": "shop-config"},
+body = {"streams": [{"stream": {"job": "deploy-events", "namespace": ns, "repo": "cascadia-activation-config"},
                      "values": [[str(time.time_ns()), json.dumps(event)]]}]}
 req = urllib.request.Request(url, data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
 urllib.request.urlopen(req, timeout=10).read()

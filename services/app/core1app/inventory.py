@@ -1,9 +1,12 @@
-"""Inventory: stock levels per SKU, reservations, periodic restock.
+"""Inventory: SIM and number stock per plan code, reservations, periodic restock.
+
+A reservation hands out an ICCID (SIM) and an MSISDN (number) for the plan. Identifiers are synthetic.
 
 Also hosts a runtime fault switch (POST /admin/fault) used by the lab to simulate a slow or failing
 dependency without any change in the config repo. It is per-pod and in-memory; a restart clears it.
 """
 import asyncio
+import itertools
 import random
 from contextlib import asynccontextmanager
 
@@ -13,13 +16,21 @@ from pydantic import BaseModel, Field
 from .common import HTTPError, create_app, env_int, log
 
 RESTOCK_INTERVAL_S = env_int("RESTOCK_INTERVAL_S", 60)
-SKUS = [f"SKU-{n:04d}" for n in range(1, 25)]
-STOCK = {sku: 100000 for sku in SKUS}
+PLANS = [f"PLAN-{n:03d}" for n in range(1, 13)]
+STOCK = {plan: 100000 for plan in PLANS}
+_serial = itertools.count(1)
+
+
+def _next_identifiers():
+    n = next(_serial)
+    iccid = f"8901260{n:012d}"          # 19 digits, telecom MII 89 + synthetic
+    msisdn = f"1206{(5550000 + n % 4000000):07d}"  # NANP, 206 area code, synthetic
+    return iccid, msisdn
 FAULT = {"latency_ms": 0, "error_rate": 0.0}
 
 
 class Reservation(BaseModel):
-    sku: str
+    plan: str
     qty: int = Field(ge=1, le=100)
 
 
@@ -31,8 +42,8 @@ class Fault(BaseModel):
 async def restock_loop():
     while True:
         await asyncio.sleep(RESTOCK_INTERVAL_S)
-        for sku in SKUS:
-            STOCK[sku] = max(STOCK[sku], 100000)
+        for plan in PLANS:
+            STOCK[plan] = max(STOCK[plan], 100000)
 
 
 @asynccontextmanager
@@ -59,26 +70,27 @@ async def simulated_work():
 @app.get("/stock")
 async def stock(request: Request):
     await simulated_work()
-    return {"items": [{"sku": s, "available": STOCK[s]} for s in SKUS]}
+    return {"items": [{"plan": p, "sims_available": STOCK[p]} for p in PLANS]}
 
 
-@app.get("/stock/{sku}")
-async def stock_one(sku: str, request: Request):
+@app.get("/stock/{plan}")
+async def stock_one(plan: str, request: Request):
     await simulated_work()
-    if sku not in STOCK:
-        raise HTTPError(404, "unknown sku")
-    return {"sku": sku, "available": STOCK[sku]}
+    if plan not in STOCK:
+        raise HTTPError(404, "unknown plan")
+    return {"plan": plan, "sims_available": STOCK[plan]}
 
 
 @app.post("/reserve")
 async def reserve(res: Reservation, request: Request):
     await simulated_work()
-    if res.sku not in STOCK:
-        raise HTTPError(404, "unknown sku")
-    if STOCK[res.sku] < res.qty:
-        raise HTTPError(409, "insufficient stock")
-    STOCK[res.sku] -= res.qty
-    return {"sku": res.sku, "reserved": res.qty, "remaining": STOCK[res.sku]}
+    if res.plan not in STOCK:
+        raise HTTPError(404, "unknown plan")
+    if STOCK[res.plan] < res.qty:
+        raise HTTPError(409, "no SIM stock for plan")
+    STOCK[res.plan] -= res.qty
+    iccid, msisdn = _next_identifiers()
+    return {"plan": res.plan, "reserved": res.qty, "remaining": STOCK[res.plan], "iccid": iccid, "msisdn": msisdn}
 
 
 @app.get("/admin/fault")

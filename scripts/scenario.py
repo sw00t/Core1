@@ -76,6 +76,16 @@ def set_inventory_fault(E, latency_ms, error_rate):
     return n
 
 
+def push_main(E, force=False):
+    """Keep the GitHub remote in step with the local config repo when one is configured (uses the host's git credentials)."""
+    r = subprocess.run(["git", "remote", "get-url", "origin"], cwd=E["CORE1_CONFIG_REPO"], capture_output=True, text=True)
+    if r.returncode != 0:
+        return
+    args = ["git", "push", "-q"] + (["--force"] if force else []) + ["origin", "main"]
+    r = subprocess.run(args, cwd=E["CORE1_CONFIG_REPO"], capture_output=True, text=True, timeout=60)
+    print("   pushed main to origin" if r.returncode == 0 else f"   warning: push to origin failed: {r.stderr.strip()[:200]}")
+
+
 def deploy(E):
     env = dict(os.environ, KUBECTL=os.path.join(ROOT, ".bin", "kubectl"), KUBECONFIG=E["CORE1_KUBECONFIG_ADMIN"],
                DEPLOY_NAMESPACE=E["CORE1_NS_APP"], LOKI_PUSH_URL=E["CORE1_LOKI_URL"] + "/loki/api/v1/push")
@@ -108,6 +118,7 @@ def cmd_inject(n):
         git(E, "commit", "-q", "-m", s["commit"]["message"], env=env)
         sha = git(E, "rev-parse", "--short", "HEAD").stdout.strip()
         record["commit"] = sha
+        push_main(E)
         print(f"   committed {sha} as {name}: {s['commit']['message'].splitlines()[0]}")
         deploy(E)
     elif s["kind"] == "runtime-fault":
@@ -154,5 +165,6 @@ if __name__ == "__main__":
     elif c == "expected": cmd_expected(args[1])
     elif c == "clear-runtime-faults": cmd_clear_runtime_faults()
     elif c == "active": cmd_active()
+    elif c == "push-main": push_main(endpoints(), force=("--force" in args))
     else:
         print(__doc__); sys.exit(2)

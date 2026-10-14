@@ -8,7 +8,7 @@ from core1app import orders
 
 def inventory_ok(req):
     if req.url.path == "/reserve":
-        return httpx.Response(200, json={"sku": "SKU-0001", "reserved": 1, "remaining": 9})
+        return httpx.Response(200, json={"plan": "PLAN-001", "reserved": 1, "remaining": 9, "iccid": "8901260000000000001", "msisdn": "12065550001"})
     return httpx.Response(500)
 
 
@@ -24,10 +24,10 @@ def test_create_get_recent_with_memory_store():
     with TestClient(orders.app) as c:
         wait_ready(c)
         orders.app.state.http = httpx.AsyncClient(transport=httpx.MockTransport(inventory_ok))
-        r = c.post("/orders", json={"sku": "SKU-0001", "qty": 1})
+        r = c.post("/orders", json={"plan": "PLAN-001", "qty": 1})
         assert r.status_code == 201
         oid = r.json()["id"]
-        assert c.get(f"/orders/{oid}").json()["sku"] == "SKU-0001"
+        assert c.get(f"/orders/{oid}").json()["iccid"] == "8901260000000000001"
         assert c.get("/orders/999999").status_code == 404
         assert oid in c.get("/orders/recent").json()["ids"]
 
@@ -39,7 +39,7 @@ def test_inventory_rejection_is_passed_through():
     with TestClient(orders.app) as c:
         wait_ready(c)
         orders.app.state.http = httpx.AsyncClient(transport=httpx.MockTransport(inventory_409))
-        r = c.post("/orders", json={"sku": "SKU-0001", "qty": 1})
+        r = c.post("/orders", json={"plan": "PLAN-001", "qty": 1})
         assert r.status_code == 409 and r.json()["error"] == "insufficient stock"
 
 
@@ -50,4 +50,4 @@ def test_inventory_timeout_is_504():
     with TestClient(orders.app) as c:
         wait_ready(c)
         orders.app.state.http = httpx.AsyncClient(transport=httpx.MockTransport(slow))
-        assert c.post("/orders", json={"sku": "SKU-0001", "qty": 1}).status_code == 504
+        assert c.post("/orders", json={"plan": "PLAN-001", "qty": 1}).status_code == 504

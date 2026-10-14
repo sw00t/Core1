@@ -75,7 +75,7 @@
     "title": "Database pool capped at one connection",
     "kind": "config-change",
     "commit": {
-      "message": "orders: cap db pool to stay within connection budget\n\nDBA asked for per-pod caps ahead of the Postgres consolidation.",
+      "message": "orders: cap db pool to stay within connection budget\n\nDBA asked for per-pod caps ahead of the Postgres consolidation. Retail launch is Thursday; this should be in before then.",
       "author": "Tomasz Weber <tomasz.weber@example.com>"
     },
     "edits": [
@@ -88,7 +88,7 @@
       "workload": "deployment/orders",
       "alerts_any_of": ["Core1HighErrorRate", "Core1HighLatencyP95"],
       "alerts_eventually": [],
-      "user_impact": "Yes: a large share of order creates and reads fail.",
+      "user_impact": "Yes: a large share of SIM activations fail in app, web and retail channels.",
       "detect_within_s": 360
     }
   },
@@ -99,13 +99,13 @@
     "kind": "runtime-fault",
     "fault": {"target": "inventory", "latency_ms": 700, "error_rate": 0.0},
     "expected": {
-      "root_cause": "Inventory responses slowed to about 700ms through a runtime condition (simulated noisy neighbour). No commit, no deploy, no config change correlates with the alert.",
+      "root_cause": "SIM inventory lookups slowed to about 700ms through a runtime condition (simulated noisy neighbour on the inventory node). No commit, no deploy, no config change correlates with the alert.",
       "fix": "No config change is appropriate. Escalate with evidence: latency rose on inventory first, then on orders and gateway; no deploy event or commit in the window.",
       "changed_files": [],
       "workload": "deployment/inventory",
       "alerts_any_of": ["Core1HighLatencyP95"],
       "alerts_eventually": [],
-      "user_impact": "Slow but working.",
+      "user_impact": "Activations slow but completing.",
       "no_change": true,
       "detect_within_s": 300
     }

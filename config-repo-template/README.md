@@ -1,7 +1,11 @@
-# shop-config
+# cascadia-activation-config
 
-Kubernetes configuration for the shop platform services: `gateway`, `orders`, `inventory`, and the
-`postgres` instance orders depends on. Managed with Kustomize.
+Kubernetes configuration for Cascadia Mobile's activation platform (the order-to-activate path):
+`gateway` (digital channel API: app, web, retail POS), `orders` (activation orders), `inventory` (SIM and
+number stock), and the `postgres` instance orders depends on. Managed with Kustomize.
+
+This platform carries every SIM activation and plan change for the digital and retail channels. The business
+metric the NOC watches is failed activations per minute.
 
 ## Layout
 
@@ -28,6 +32,8 @@ deploy.sh                  the only supported way to apply this repo to a cluste
 - Configuration values live in `overlays/prod/config/<service>.env`. Changing one rolls the pods
   (the ConfigMap name carries a content hash).
 - Secrets are not in this repo. The `orders-db` Secret is provisioned by the platform team.
+- Change freeze windows are declared in `change-freeze.json`. Inside a window, only emergency changes with a named
+  approver may be merged.
 - Resource requests and limits are in `overlays/prod/patches/`. Memory limits are hard limits:
   a container that exceeds one is killed.
 - Probes: `/healthz` is readiness, `/livez` is liveness, on port 8080 for every service.

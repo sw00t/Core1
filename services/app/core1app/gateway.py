@@ -1,4 +1,4 @@
-"""Gateway: the public edge. Validates requests and forwards to orders and inventory."""
+"""Gateway: the digital channel API (app, web, retail POS). Validates requests and forwards to orders and inventory."""
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -13,16 +13,17 @@ app = create_app("gateway")
 
 
 class NewOrder(BaseModel):
-    sku: str = Field(min_length=1, max_length=64)
+    plan: str = Field(min_length=1, max_length=64)
     qty: int = Field(ge=1, le=100)
+    channel: str = Field(default="app", max_length=32)
 
 
 def passthrough(resp):
     return JSONResponse(resp.json() if resp.content else None, status_code=resp.status_code)
 
 
-@app.get("/api/products")
-async def products(request: Request):
+@app.get("/api/plans")
+async def plans(request: Request):
     resp = await call_upstream(request.app.state.http, "inventory", "GET", f"{INVENTORY_URL}/stock",
                                timeout_ms=UPSTREAM_TIMEOUT_MS, trace_id=request.state.trace_id)
     return passthrough(resp)

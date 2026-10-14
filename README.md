@@ -1,5 +1,8 @@
 # Core1
 
+In its current skin Core1 plays Cascadia Mobile, a fictional regional mobile operator, and the three services are
+its activation platform: gateway (digital channel API), orders (activation orders), inventory (SIM and number stock).
+
 A small, realistic enterprise system you can break on purpose: three services and a database on a
 local Kubernetes cluster, with Prometheus, Alertmanager, Grafana and Loki watching them, a config repo
 that is the only way changes reach the cluster, and five scripted incidents with one-command reset.

@@ -92,6 +92,9 @@ alertmanager:
       - name: 'null'
       - name: core1-webhook
         webhook_configs:
+          - url: http://alert-sink.__NS_SYS__.svc:8080/webhook
+            send_resolved: true
+            max_alerts: 50
           - url: __ALERT_WEBHOOK_URL__
             send_resolved: true
             max_alerts: 50
