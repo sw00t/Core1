@@ -102,5 +102,4 @@ async def get_fault():
 async def set_fault(fault: Fault):
     FAULT["latency_ms"] = fault.latency_ms
     FAULT["error_rate"] = fault.error_rate
-    log.debug("fault switch updated", extra={"latency_ms": fault.latency_ms, "error_rate": fault.error_rate})
     return FAULT

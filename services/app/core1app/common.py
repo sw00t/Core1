@@ -14,7 +14,8 @@ from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, ge
 
 SERVICE = os.environ.get("CORE1_SERVICE", "app")
 VERSION = os.environ.get("APP_VERSION", "dev")
-UNINSTRUMENTED = {"/metrics", "/healthz", "/livez"}
+# /admin/fault is the lab's runtime fault switch; it must leave no trace, since it simulates an external condition.
+UNINSTRUMENTED = {"/metrics", "/healthz", "/livez", "/admin/fault"}
 BUCKETS = (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10)
 
 
