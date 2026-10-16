@@ -136,3 +136,11 @@ def test_multiline_placeholder_keeps_yaml_indentation():
     text = "a:\n  rootCA: |\n    __X__\n  b: 1"
     out = gitops._replace_indented(text, "__X__", "line1\nline2\nline3")
     assert out == "a:\n  rootCA: |\n    line1\n    line2\n    line3\n  b: 1"
+
+
+def test_argocd_bootstrap_path_has_no_late_crds():
+    """Bootstrap applies platform/argocd/base on a fresh cluster: only the chart and plain objects may live there."""
+    from core1.argocd import BOOTSTRAP_PATH
+    text = (ROOT / "gitops" / BOOTSTRAP_PATH / "kustomization.yaml").read_text()
+    resources = [l.strip()[2:] for l in text.split("resources:")[1].split("helmCharts:")[0].splitlines() if l.strip().startswith("- ")]
+    assert resources == ["namespace.yaml"]

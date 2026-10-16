@@ -4,24 +4,29 @@ Core1 is a reusable, enterprise-shaped lab for interview take-home assignments. 
 Industry packs (telco, retail) layer on top and swap cleanly. The design is in `DESIGN.md`.
 
 **Status:** v2 is being built on the `v2` branch, phase by phase (`DESIGN.md` section 13, progress in
-`docs/progress.md`). Phase 1 delivers the host layer: three empty k3d clusters and a local registry. The working v1
-(single cluster, Cascadia Mobile telco skin, five scenarios) is frozen at tag `v1-frozen`.
+`docs/progress.md`). Phases 1 and 2 are in: three clusters, a registry, and the platform core managed by Argo CD
+from `core1-gitops`. The working v1 (single cluster, Cascadia Mobile telco skin, five scenarios) is frozen at tag
+`v1-frozen`.
 
 ## Prerequisites
 
 - macOS on Apple Silicon, Docker Desktop with about 24 GB memory and 8 CPUs (`docs/host.md`)
 - Python 3.11 (`brew install python@3.11`), `git`, `curl`
+- Two fine-grained GitHub tokens for `core1-gitops` in `.env` (see `.env.example`)
 
-Everything else (k3d, kubectl, helm, Python packages) is pinned in `versions.env` and `cli/requirements.txt` and
-lands in `.bin` and `.venv` inside the repo. Nothing is installed system-wide. `~/.kube` is never touched.
+Everything else (k3d, kubectl, helm, kustomize, kubeconform, kyverno, Python packages) is pinned in `versions.env`
+and `cli/requirements.txt` and lands in `.bin` and `.venv` inside the repo. Nothing is installed system-wide.
+`~/.kube` is never touched.
 
 ## Quick start
 
 ```
-./core1 up          # registry plus mgmt, stage, prod; about 3 minutes from nothing, under 2 with images cached
-./core1 status
-./core1 test smoke  # green checks plus an image pull through the registry in every cluster
-./core1 nuke        # delete clusters, registry, network, local state (--all also clears caches)
+./core1 up              # everything to green; see docs/progress.md for current timings
+./core1 status          # clusters, plus Argo CD apps against main HEAD
+./core1 status --watch  # the Argo CD view, refreshed every 5 s
+./core1 creds           # SSO users and passwords (lab only)
+./core1 test smoke      # registry pull, data services, SSO
+./core1 nuke            # delete clusters, registry, network, local state (--all also clears caches and the CA)
 ```
 
 `make help` lists the same commands as Make targets.
@@ -30,11 +35,20 @@ lands in `.bin` and `.venv` inside the repo. Nothing is installed system-wide. `
 
 | Piece | Detail |
 |---|---|
-| Clusters | `mgmt`, `stage`, `prod`: k3d, 1 server plus 1 agent each, Traefik off |
-| Network | Docker network `core1`, shared by all clusters and the registry |
+| Clusters | `mgmt`, `stage`, `prod`: k3d, 1 server plus 1 agent each, on Docker network `core1` |
 | Registry | `k3d-registry`, push to `127.0.0.1:17000`, clusters pull `k3d-registry:17000/<image>` |
-| Kubeconfigs | `.kube/mgmt.yaml`, `.kube/stage.yaml`, `.kube/prod.yaml` |
-| Endpoints | `.work/endpoints.json` and `.work/endpoints.env` |
+| GitOps | `core1-gitops` on GitHub; `up` keeps Core1's `gitops/` template there through PRs merged after CI |
+| Argo CD | in mgmt, polls `main` every 30 s, deploys the platform to all three clusters |
+| Platform | cert-manager, Envoy Gateway, OpenBao (mgmt), External Secrets, CloudNativePG, Keycloak (mgmt), Kyverno (stage, prod), Postgres, Kafka and Valkey (stage, prod) |
+| Local state | `.kube/<cluster>.yaml`, `.work/endpoints.json`, `.ca/` (lab root CA), `.work/openbao/init.json` |
+
+URLs (trust `.ca/ca.crt` to avoid browser warnings, see `docs/host.md`):
+
+| | URL |
+|---|---|
+| Argo CD | `https://argocd.mgmt.localhost:17181` (log in via Keycloak) |
+| Keycloak | `https://sso.mgmt.localhost:17181` |
+| OpenBao | `https://bao.mgmt.localhost:17181` |
 
 Host ports bind to 127.0.0.1 only:
 
@@ -52,7 +66,8 @@ Change the base with `CORE1_PORT_BASE` in `.env` (see `.env.example`).
 core1                 entrypoint: builds .venv, runs the CLI
 cli/core1/            the CLI (Typer)
 cli/tests/            CLI unit tests (make test)
-versions.env          every pinned version; verification in docs/decisions.md
+gitops/               template for core1-gitops: bootstrap, platform components, policies, CI
+versions.env          pinned host tools and images; verification in docs/decisions.md
 docs/                 progress, decisions, host, sizing, v1 inventory, backlog
 ```
 

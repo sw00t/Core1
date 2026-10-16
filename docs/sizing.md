@@ -106,3 +106,35 @@ The rest is an estimate, not a measurement. Phase 3 measures it.
 
 Samples and logs stayed in the Claude Code session scratchpad (not committed): `stats.jsonl`, `meminfo.txt`,
 `top-nodes.txt`, `create-*.log`, `disk-df*.txt`. The figures above are the full summary.
+
+## Phase 2 measurement (platform core, no app yet)
+
+2026-10-16, working copy, all 22 platform apps synced and healthy, idle, six samples 10 s apart.
+
+| Measure | Value |
+|---|---|
+| VM memory used | 14329 MiB mean, 14474 MiB max, of 24246 MiB |
+| mgmt (containers) | 5960 MiB |
+| stage (containers) | 4991 MiB |
+| prod (containers) | 5197 MiB |
+| registry | 48 MiB |
+
+Largest consumers:
+
+| Where | What | Memory |
+|---|---|---|
+| each server node | k3s itself (API server, datastore) | about 2.5 to 2.8 GiB above its pods |
+| mgmt | Argo CD application controller | 1417 MiB (limit raised to 2 GiB after an OOM kill at 768 MiB) |
+| mgmt | Keycloak | 575 MiB |
+| stage, prod | Kafka (one KRaft node) | 536 MiB |
+| stage, prod | Strimzi operator | 244 MiB |
+
+The k3s server cost grows with the number of CRDs (Kyverno, Strimzi, External Secrets, Envoy Gateway, cert-manager
+together install well over a hundred). This is the main gap against the phase 0 estimate, which assumed 4 to 5 GiB
+per workload cluster including the app.
+
+Projection (estimate): the reference app (phase 5) adds about 1 GiB per workload cluster; observability (phase 3)
+adds about 2 to 3 GiB in mgmt and a few hundred MiB per workload cluster. That lands at about 20 to 22 GiB of
+24 GiB. It fits, with little headroom. Levers before the DESIGN.md trim order: turn off Kyverno's reports and
+background controllers, lower Kafka's heap, drop the agent nodes (about 100 MiB each), or raise the Docker VM above
+24 GiB (the host has 36 GB). Measure again at the end of phase 3.

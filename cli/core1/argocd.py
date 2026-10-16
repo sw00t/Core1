@@ -13,6 +13,7 @@ from .shell import CommandError, docker_env, log, run
 
 NS = "argocd"
 POLL_SECONDS = 30
+BOOTSTRAP_PATH = "platform/argocd/base"
 COMPONENT_DEPLOYMENTS = ("argocd-server", "argocd-repo-server", "argocd-applicationset-controller", "argocd-redis")
 
 
@@ -30,9 +31,11 @@ def apply_json(settings, cluster, obj):
 
 
 def install(settings, checkout):
-    """Render platform/argocd/overlays/mgmt from the GitOps checkout and apply it server-side."""
+    """Render platform/argocd/base from the GitOps checkout and apply it server-side. The base is the chart and
+    its CRDs only; the mgmt overlay adds objects whose CRDs (Gateway API, External Secrets) arrive later through
+    Argo CD itself, so applying the overlay on a fresh cluster would fail."""
     log("installing Argo CD into mgmt (bootstrap)")
-    rendered = run([settings.tool("kustomize"), "build", "--enable-helm", str(checkout / "platform/argocd/overlays/mgmt")],
+    rendered = run([settings.tool("kustomize"), "build", "--enable-helm", str(checkout / BOOTSTRAP_PATH)],
                    env=docker_env(settings), timeout=300).stdout
     kubectl(settings, mgmt(settings), "apply", "--server-side", "--force-conflicts", "-f", "-", input=rendered, timeout=300)
     wait_ready(settings)
@@ -57,7 +60,7 @@ def repair_if_down(settings, checkout, grace=60):
     # would resume it and re-apply the old revision. Drop it first.
     kubectl(settings, mgmt(settings), "-n", NS, "patch", "application", "argocd-mgmt", "--type", "merge",
             "-p", json.dumps({"operation": None, "status": {"operationState": None}}), check=False)
-    rendered = run([settings.tool("kustomize"), "build", "--enable-helm", str(checkout / "platform/argocd/overlays/mgmt")],
+    rendered = run([settings.tool("kustomize"), "build", "--enable-helm", str(checkout / BOOTSTRAP_PATH)],
                    env=docker_env(settings), timeout=300).stdout
     kubectl(settings, mgmt(settings), "apply", "--server-side", "--force-conflicts", "-f", "-", input=rendered, timeout=300)
     # A StatefulSet does not replace a pod that never became ready; delete it so the new spec takes effect.

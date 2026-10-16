@@ -164,3 +164,9 @@ Rewritten: `Makefile` (shim over `./core1`), `versions.env` (v2 pins only), `.en
 v1 scripts still in the tree (`lib.sh`, `obs-install.sh`, `deploy.sh`, `reset.sh`, `scenario.py`, `diag.sh`,
 `tests/verify.py` and others) are reference only. Nothing calls them, and some point at files removed above. Each
 goes when its phase lands.
+
+## Phase 2 deletions
+
+Replaced by the platform core and deleted: `scripts/app-secrets.sh` (OpenBao plus External Secrets),
+`scripts/deploy.sh` and `config-repo-template/deploy.sh` (Argo CD). The deploy-event idea (a record of every change
+that reached a cluster) is still to be ported; Argo CD's sync history and the core1-gitops log cover it for now.
