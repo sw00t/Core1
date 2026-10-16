@@ -1,55 +1,56 @@
 # Core1
 
-Core1 is a small, realistic enterprise system you can break on purpose: three services and a database on a
+Core1 is a small, realistic enterprise system you can break, reset, and reuse on purpose: three services and a database on a
 local Kubernetes cluster, with Prometheus, Alertmanager, Grafana and Loki watching them, a config repo that is
-the only way changes reach the cluster, and five scripted incidents with one-command reset. It exists so that an
-agent can be built, demonstrated and evaluated against something that behaves like production without being one.
+the only way changes reach the cluster, and five scripted incidents with one-command reset. 
 
-In its current skin Core1 plays Cascadia Mobile, a fictional regional mobile operator, and the three services are
-its activation platform: gateway (digital channel API), orders (activation orders), inventory (SIM and number stock).
+It exists so that an agent can be built, demonstrated and evaluated against something that behaves like production without being one.
+
+In its current skin Core1 plays "Cascadia Mobile", a fictional regional mobile operator, and the three services are
+its activation platform: Gateway (digital channel API), Orders (activation orders), Inventory (SIM and number stock).
 
 Core1 is the reusable base. The agent, its tools and the evaluation harness live in a separate repo
 (Core1-agent, a Cursor SDK incident agent) and talk to Core1 only through standard APIs: Prometheus, Loki,
-Alertmanager webhooks, the Kubernetes API with a read-only identity, and git.
+Alertmanager webhooks, the Kubernetes API with a read-only identity, and git. Core1-agent is to be a private repo for now. 
 
-**Status.** `main` is v1: single cluster, telco skin, verified end to end with the incident agent, and frozen at tag
-`v1-frozen`. v2, a multi-cluster rebuild with a generic core and swappable industry packs, is in progress on the
-`v2` branch and is not yet runnable; see that branch's README and `docs/progress.md`.
+**Status.** `main` is v1: single cluster, telco skin, verified end-to-end with the incident agent, and frozen at tag
+`v1-frozen`. v2, a multi-cluster rebuild with a generic core and swappable industry packs (telco, retail, finance), is in progress on the
+`v2` branch and is not yet runnable; please ignore for now, however you can view that branch's README and `docs/progress.md`.
 
 ## Prerequisites
 
-- Docker engine running (Docker Desktop on macOS: at least 8 GB memory allocated)
-- `make`, `bash`, `git`, `curl`, `tar` (all present on macOS and most Linux)
-- `python3` 3.9 or newer, standard library only (macOS ships one with the developer tools)
+- Docker engine running (Docker Desktop on macOS: 8+ GB memory allocated)
+- `make`, `bash`, `git`, `curl`, `tar` (macOS, most Linux)
+- `python3` 3.9 or newer, standard library only
 
-Everything else (k3d, kubectl, helm) is downloaded into `.bin/` at pinned versions. Nothing is installed
-system-wide; `~/.kube` and other clusters are never touched.
+Everything else (k3d, kubectl, helm) is downloaded into `.bin/` at pinned versions. 
+Nothing is installed system-wide; `~/.kube` and other clusters are never touched.
 
 ## Quick start
 
 ```
-cp .env.example .env        # optional; defaults work
-make up                     # 10 to 20 minutes the first time
+cp .env.example .env        # Optional; defaults work
+make up                     # 10 - 20 minutes the first time
 make status
-make verify-quick           # about 2 minutes
-make verify                 # full run with every scenario, 30 to 45 minutes
+make verify-quick           # ~2 minutes
+make verify                 # Full run with every scenario, 30 - 45 minutes
 ```
 
-Then open Grafana at the URL in `.work/endpoints.env` (admin / the password in `.env`).
+Then open Grafana at the URL in `.work/endpoints.env` (admin / password in `.env`).
 
 ## Commands
 
 ```
-make up / down / reset      build everything; delete it; return to the known-good baseline
-make status                 one-screen summary (pods, config repo log, active lab alerts, disk)
-make scenario N=3           inject scenario 3 (see make scenarios)
-make verify / verify-quick  acceptance tests; reports land in reports/
-make diag                   diagnostics bundle into logs/diag-<timestamp>/
-make runner                 unattended runner (docs/RUNNER.md)
-make help                   everything else
+make up / down / reset      Build everything; delete it; return to the known-good baseline
+make status                 One-screen summary (pods, config repo log, active lab alerts, disk)
+make scenario N=3           Inject scenario 3 (see make scenarios)
+make verify / verify-quick  Acceptance tests; reports land in reports/
+make diag                   Diagnostics bundle into logs/diag-<timestamp>/
+make runner                 Unattended runner (docs/RUNNER.md)
+make help                   Everything else
 ```
 
-## What is in the box
+## What's in the box
 
 | Piece | Where | Notes |
 |---|---|---|
@@ -67,11 +68,11 @@ make help                   everything else
 
 | N | Fault | How it shows up |
 |---|---|---|
-| 1 | orders memory limit cut to 32Mi | OOMKilled, CrashLoopBackOff, rollout stuck |
-| 2 | inventory image tag that was never built | ImagePullBackOff, rollout stuck |
-| 3 | gateway readiness probe path changed | pods Running but never Ready, rollout stuck |
-| 4 | orders DB pool capped at 1 | 503s and high latency on orders and gateway |
-| 5 | decoy: inventory slowed at runtime, no change anywhere | p95 latency alert with no matching commit or deploy |
+| 1 | Orders memory limit cut to 32Mi | OOMKilled, CrashLoopBackOff, rollout stuck |
+| 2 | Inventory image tag that was never built | ImagePullBackOff, rollout stuck |
+| 3 | Gateway readiness probe path changed | pods Running but never Ready, rollout stuck |
+| 4 | Orders DB pool capped at 1 | 503s and high latency on orders and gateway |
+| 5 | Decoy: inventory slowed at runtime, no change anywhere | p95 latency alert with no matching commit or deploy |
 
 `make scenario N=4` commits and deploys the change (or flips the runtime fault). `make reset` restores
 the baseline. Answer files: `scripts/scenario.py expected N`.
@@ -80,7 +81,7 @@ the baseline. Answer files: `scripts/scenario.py expected N`.
 
 - Alerts: Alertmanager posts lab alerts (label `lab=core1`) to `ALERT_WEBHOOK_URL` (`.env`). Default is the
   in-cluster sink; point it at `http://host.k3d.internal:PORT/...` for an agent on your host.
-- Metrics: Prometheus HTTP API. Logs: Loki HTTP API (`{namespace="core1-app", app="orders"}`,
+- Metrics: Prometheus HTTP API , Logs: Loki HTTP API (`{namespace="core1-app", app="orders"}`,
   `{job="deploy-events"}`). Both URLs are in `.work/endpoints.env`.
 - Cluster: `.kube/agent-readonly.yaml` (get/list/watch; no secrets; no writes).
 - Changes: the config repo at `.work/config-repo`. `deploy.sh` applies HEAD and records a deploy event.
