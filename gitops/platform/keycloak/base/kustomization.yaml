@@ -11,7 +11,8 @@ resources:
 configMapGenerator:
   - name: keycloak-realm
     files:
-      - realm.json
+      # `kc.sh import --dir` only reads files named <realm>-realm.json
+      - core1-realm.json=realm.json
 generatorOptions:
   labels:
     app.kubernetes.io/part-of: core1

@@ -144,3 +144,11 @@ def test_argocd_bootstrap_path_has_no_late_crds():
     text = (ROOT / "gitops" / BOOTSTRAP_PATH / "kustomization.yaml").read_text()
     resources = [l.strip()[2:] for l in text.split("resources:")[1].split("helmCharts:")[0].splitlines() if l.strip().startswith("- ")]
     assert resources == ["namespace.yaml"]
+
+
+def test_keycloak_realm_file_name_matches_dir_import():
+    """kc.sh import --dir ignores files not named <realm>-realm.json; a fresh install would have no realm."""
+    import json
+    realm = json.loads((ROOT / "gitops/platform/keycloak/base/realm.json").read_text())["realm"]
+    text = (ROOT / "gitops/platform/keycloak/base/kustomization.yaml").read_text()
+    assert f"- {realm}-realm.json=realm.json" in text

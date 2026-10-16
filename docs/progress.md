@@ -95,3 +95,61 @@ Phase 2 (platform core), after S approves phase 1 and the phase 2 plan.
    Permissions: see "GitHub tokens" in the phase 2 plan.
 3. Argo CD polls every 30 s. The lab is not up all the time, so S needs a glance view of Argo CD state after
    `up`: sync and health per app, and whether each cluster runs `main` HEAD.
+
+## 2026-10-16: Phase 2, platform core
+
+### Done
+
+- `core1-gitops` seeded and kept in step by PR: `up` renders Core1's `gitops/` template, validates it locally, opens
+  a PR, waits for CI, squash-merges, and closes superseded update PRs. Core1 owns `bootstrap/`, `platform/`,
+  `policies/`, `ci/`, `.github/`, `.core1/`, `.gitignore`, `README.md` there.
+- CI on every PR and on `main`: kustomize render (Helm charts included), kubeconform, Kyverno policy gate on every
+  rendered folder, `kyverno test` cases. Tools pinned and checksum-verified.
+- Argo CD in mgmt (bootstrap once, then self-managed), 30 s polling, stage and prod registered over the `core1`
+  network. One ApplicationSet: one Application per `platform/<component>/overlays/<cluster>`.
+- Platform: cert-manager with a lab CA, Envoy Gateway per cluster (`*.<cluster>.localhost`), OpenBao in mgmt with
+  Kubernetes auth per cluster, External Secrets everywhere, CloudNativePG everywhere, Keycloak on Postgres with
+  realm as code, Argo CD SSO with group-based RBAC and local admin off, Kyverno baseline in stage and prod,
+  Postgres, Kafka (Strimzi, KRaft) and Valkey in stage and prod. 22 Applications.
+- CLI: `status` shows Argo CD per cluster against `main` HEAD; `status --watch`; `creds`; `test smoke` now also
+  covers data services and SSO; `doctor` checks token scope and expiry; `up` repairs a crashed Argo CD controller.
+
+### Exit criteria
+
+| Criterion | Result |
+|---|---|
+| Argo CD shows all platform apps synced in stage and prod | ACCEPTANCE_RESULT |
+| SSO works | `platform-admin` and `platform-viewer` log in through Keycloak; admin may sync (HTTP 200), viewer is refused (HTTP 403) |
+| A policy-violating PR fails CI | `core1-gitops` PR #9: CI failed on the Kyverno gate naming three violations (no limits, `latest` tag, root); closed unmerged |
+
+Data services smoke passed in stage and prod: Postgres write and read, Valkey set and get, Kafka produce and
+consume.
+
+### Problems found and fixed
+
+- Parallel chart pulls into a shared base folder collided in Argo CD's repo server: one render at a time.
+- Gateway API defaults showed as drift: server-side diff on, defaults written out in manifests.
+- Argo CD application controller OOM-killed at 768 MiB: 2 GiB limit, and `up` now repairs a crashed controller,
+  clearing a stale self-sync that would re-apply the old limit.
+- CI exit 141: `kyverno version | head -1` under `pipefail`.
+- kubeconform cannot compile the catalog schema for `external-secrets.io/v1` store kinds: skipped, webhook
+  validates them.
+- Keycloak scopes: custom realm scopes replace the built-in `profile` and `email`; mappers moved to the client.
+- Clean clone: bootstrap applied Argo CD's overlay before its CRDs existed; bootstrap now applies only the base.
+
+### Memory
+
+14.3 GiB of 24.2 GiB with the whole platform idle (docs/sizing.md). Projection with the app and observability:
+20 to 22 GiB. Tight; see the levers in `docs/sizing.md`.
+
+### Next
+
+Phase 3 (observability), after S approves phase 2 and the phase 3 plan.
+
+### Open questions for S before phase 3
+
+1. Memory headroom: raise the Docker VM above 24 GiB (host has 36 GB), or trim first (Kyverno reports and
+   background controllers, Kafka heap)?
+2. GitHub tokens expire 2026-11-15. `doctor` warns 7 days ahead. Fine, or a longer expiry?
+3. `kyverno.io/v1` ClusterPolicy is deprecated in Kyverno 1.19. Migrate to ValidatingPolicy now, or leave it in the
+   backlog?
