@@ -87,10 +87,11 @@ Two bugs found by the clean clone and fixed: k3d's checksum list prefixes names 
 
 Phase 2 (platform core), after S approves phase 1 and the phase 2 plan.
 
-### Open questions for S before phase 2
+### Decisions from S for phase 2
 
-1. `core1-gitops` is private on the free plan: no rulesets or branch protection. Options: make it public, upgrade to
-   GitHub Pro, or accept that CI fails a bad PR but cannot block its merge (Argo CD still only syncs `main`).
-2. GitHub token for Argo CD and CI: S creates a fine-grained token scoped to `Core1` and `core1-gitops`. It goes into
-   OpenBao, and into a git-ignored `.env` only until OpenBao is up.
-3. Argo CD poll interval for the demo (`DESIGN.md` section 5 says short). Proposed 30 s.
+1. `core1-gitops` stays private without Pro. Accepted: CI fails a bad PR but cannot block its merge. Argo CD syncs
+   `main` only.
+2. One fine-grained token per consumer, created by S, kept in the git-ignored `.env` until OpenBao holds them.
+   Permissions: see "GitHub tokens" in the phase 2 plan.
+3. Argo CD polls every 30 s. The lab is not up all the time, so S needs a glance view of Argo CD state after
+   `up`: sync and health per app, and whether each cluster runs `main` HEAD.

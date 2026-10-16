@@ -45,8 +45,8 @@ def test_create_args_shape():
     assert "--network core1" in joined
     assert "--registry-use k3d-registry:17000" in joined
     assert "--api-port 127.0.0.1:17243" in joined
-    assert "127.0.0.1:17280:80@loadbalancer" in joined
-    assert "127.0.0.1:17281:443@loadbalancer" in joined
+    assert "127.0.0.1:17280:17280@loadbalancer" in joined
+    assert "127.0.0.1:17281:17281@loadbalancer" in joined
     assert "--disable=traefik@server:*" in joined
     assert "servicelb" not in joined
     assert "--kubeconfig-update-default=false" in joined

@@ -114,4 +114,49 @@ def run_doctor(settings):
             r.ok(f"{name} {have}")
         else:
             r.note(f"{name} {want} not in .bin yet (up downloads it)" if have is None else f"{name} {have} in .bin, {want} pinned (up replaces it)")
+
+    check_tokens(settings, r)
     return not r.failed
+
+
+def core1_repo(settings):
+    """owner/name of Core1's own GitHub remote, if any."""
+    from .shell import run
+    url = run(["git", "-C", settings.root, "remote", "get-url", "origin"], check=False).stdout.strip()
+    if "github.com" not in url:
+        return None
+    return url.split("github.com", 1)[1].lstrip(":/").removesuffix(".git")
+
+
+def check_tokens(settings, r, now=None):
+    from datetime import datetime, timezone
+    from .github import GitHub, GitHubError
+
+    own = core1_repo(settings)
+    for which in ("argocd", "automation"):
+        key = f"CORE1_GITHUB_TOKEN_{which.upper()}"
+        token = settings.token(which)
+        if not token:
+            r.fail(f"{key} missing (.env); see .env.example")
+            continue
+        try:
+            gh = GitHub(token, settings.gitops_repo)
+            status, expiry = gh.token_expiry()
+            if status != 200:
+                r.fail(f"{key} cannot read {settings.gitops_repo} (HTTP {status})")
+                continue
+            msg = f"{key} reads {settings.gitops_repo}"
+            if expiry:
+                when = datetime.strptime(expiry.replace(" UTC", ""), "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+                days = (when - (now or datetime.now(timezone.utc))).total_seconds() / 86400
+                if days < 0:
+                    r.fail(f"{key} expired on {expiry}")
+                    continue
+                msg += f", expires in {days:.0f} days"
+                (r.warn if days < 7 else r.ok)(msg)
+            else:
+                r.ok(msg)
+            if own and gh.can_read_repo(own):
+                r.warn(f"{key} can also read {own}; it only needs {settings.gitops_repo}")
+        except GitHubError as e:
+            r.warn(f"{key}: could not reach GitHub ({e})")

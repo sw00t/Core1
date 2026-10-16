@@ -15,9 +15,9 @@ def k3d(settings, *args, check=True, timeout=600):
     return run([settings.tool("k3d"), *args], env=docker_env(settings), check=check, timeout=timeout)
 
 
-def kubectl(settings, cluster, *args, check=True, timeout=60):
+def kubectl(settings, cluster, *args, check=True, timeout=60, input=None):
     return run([settings.tool("kubectl"), "--kubeconfig", cluster.kubeconfig(settings), *args],
-               env=docker_env(settings), check=check, timeout=timeout)
+               env=docker_env(settings), check=check, timeout=timeout, input=input)
 
 
 # ---- network and registry ----
@@ -70,8 +70,9 @@ def create_args(settings, cluster):
         "--network", NETWORK,
         "--registry-use", settings.registry_use,
         "--api-port", f"127.0.0.1:{cluster.api_port}",
-        "-p", f"127.0.0.1:{cluster.http_port}:80@loadbalancer",
-        "-p", f"127.0.0.1:{cluster.https_port}:443@loadbalancer",
+        # same port outside and inside, so one URL works from the browser and from pods (OIDC issuers)
+        "-p", f"127.0.0.1:{cluster.http_port}:{cluster.http_port}@loadbalancer",
+        "-p", f"127.0.0.1:{cluster.https_port}:{cluster.https_port}@loadbalancer",
         "--k3s-arg", "--disable=traefik@server:*",
         "--kubeconfig-update-default=false",
         "--kubeconfig-switch-context=false",

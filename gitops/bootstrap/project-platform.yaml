@@ -1,0 +1,22 @@
+# Platform components: owned by Core1, deployed to every cluster from this repo only.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: platform
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: core1
+spec:
+  description: Core1 platform components (layer L1)
+  sourceRepos:
+    - __CORE1_GITOPS_URL__
+  destinations:
+    - name: mgmt
+      namespace: "*"
+    - name: stage
+      namespace: "*"
+    - name: prod
+      namespace: "*"
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"

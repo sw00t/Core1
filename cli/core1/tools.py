@@ -13,8 +13,9 @@ from pathlib import Path
 
 from .shell import CommandError, log, run, warn
 
-TOOLS = ("k3d", "kubectl", "helm")
-VERSION_KEYS = {"k3d": "K3D_VERSION", "kubectl": "KUBECTL_VERSION", "helm": "HELM_VERSION"}
+TOOLS = ("k3d", "kubectl", "helm", "kustomize", "kubeconform")
+VERSION_KEYS = {"k3d": "K3D_VERSION", "kubectl": "KUBECTL_VERSION", "helm": "HELM_VERSION",
+                "kustomize": "KUSTOMIZE_VERSION", "kubeconform": "KUBECONFORM_VERSION"}
 
 
 def host_os_arch():
@@ -70,6 +71,16 @@ def _install(settings, name, src, version):
     (settings.bin_dir / f".{name}.version").write_text(version)
 
 
+def _extract_checked(tmp, tgz, want, member):
+    """Verify TGZ against WANT, then extract MEMBER from it. Returns the extracted path."""
+    got = sha256_of(tmp / tgz)
+    if got != want:
+        raise SystemExit(f"checksum mismatch for {tgz}: got {got} want {want}")
+    with tarfile.open(tmp / tgz) as tf:
+        tf.extract(tf.getmember(member), tmp, filter="data")
+    return tmp / member
+
+
 def _download(name, version, os_name, arch, tmp):
     tmp = Path(tmp)
     if name == "k3d":
@@ -91,13 +102,19 @@ def _download(name, version, os_name, arch, tmp):
         fetch(tmp / tgz, f"https://get.helm.sh/{tgz}")
         fetch(tmp / f"{tgz}.sha256sum", f"https://get.helm.sh/{tgz}.sha256sum")
         want = (tmp / f"{tgz}.sha256sum").read_text().split()[0]
-        got = sha256_of(tmp / tgz)
-        if got != want:
-            raise SystemExit(f"checksum mismatch for {tgz}: got {got} want {want}")
-        with tarfile.open(tmp / tgz) as tf:
-            member = tf.getmember(f"{os_name}-{arch}/helm")
-            tf.extract(member, tmp, filter="data")
-        return tmp / f"{os_name}-{arch}" / "helm"
+        return _extract_checked(tmp, tgz, want, f"{os_name}-{arch}/helm")
+    elif name == "kustomize":
+        base = f"https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F{version}"
+        tgz = f"kustomize_{version}_{os_name}_{arch}.tar.gz"
+        fetch(tmp / tgz, f"{base}/{tgz}")
+        fetch(tmp / "checksums.txt", f"{base}/checksums.txt")
+        return _extract_checked(tmp, tgz, checksum_from_list((tmp / "checksums.txt").read_text(), tgz), "kustomize")
+    elif name == "kubeconform":
+        base = f"https://github.com/yannh/kubeconform/releases/download/{version}"
+        tgz = f"kubeconform-{os_name}-{arch}.tar.gz"
+        fetch(tmp / tgz, f"{base}/{tgz}")
+        fetch(tmp / "CHECKSUMS", f"{base}/CHECKSUMS")
+        return _extract_checked(tmp, tgz, checksum_from_list((tmp / "CHECKSUMS").read_text(), tgz), "kubeconform")
     else:
         raise ValueError(name)
     got = sha256_of(binary)

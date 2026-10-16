@@ -30,6 +30,10 @@ def docker_env(settings=None):
         env["K3D_IMAGE_LOADBALANCER"] = settings.version("K3D_PROXY_IMAGE")
         env["K3D_IMAGE_TOOLS"] = settings.version("K3D_TOOLS_IMAGE")
         env["PATH"] = f"{settings.bin_dir}{os.pathsep}{env.get('PATH', '')}"
+        # keep Helm state inside the repo (kustomize --enable-helm calls helm)
+        helm = settings.work_dir / "helm"
+        env.update(HELM_CACHE_HOME=str(helm / "cache"), HELM_CONFIG_HOME=str(helm / "config"),
+                   HELM_DATA_HOME=str(helm / "data"))
     return env
 
 

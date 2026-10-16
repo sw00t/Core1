@@ -25,7 +25,7 @@ def test_sha256_of(tmp_path):
 
 
 def test_installed_version_and_override(tmp_path):
-    (tmp_path / "versions.env").write_text("K3D_VERSION=v9\nKUBECTL_VERSION=v8\nHELM_VERSION=v7\n")
+    (tmp_path / "versions.env").write_text("K3D_VERSION=v9\nKUBECTL_VERSION=v8\nHELM_VERSION=v7\nKUSTOMIZE_VERSION=v6\nKUBECONFORM_VERSION=v5\n")
     s = Settings(root=tmp_path, environ={})
     assert tools.installed_version(s, "k3d") is None
     fake = tmp_path / "fake-k3d"

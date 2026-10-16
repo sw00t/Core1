@@ -1,0 +1,3 @@
+# kustomize --enable-helm caches charts next to each kustomization
+charts/
+.ci-bin/

@@ -1,0 +1,49 @@
+# Argo CD for the Core1 lab: single replicas, small limits, 30 s polling of core1-gitops.
+global:
+  domain: argocd.mgmt.localhost
+  logging:
+    format: json
+
+crds:
+  install: true
+  keep: true
+
+dex:
+  enabled: false  # SSO goes straight to Keycloak over OIDC (phase 2d)
+
+notifications:
+  enabled: false
+
+configs:
+  cm:
+    timeout.reconciliation: 30s
+    timeout.reconciliation.jitter: 0s
+    kustomize.buildOptions: --enable-helm
+    admin.enabled: true  # turned off once Keycloak SSO is in (phase 2d)
+  params:
+    server.insecure: true  # TLS ends at the gateway
+
+controller:
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {memory: 768Mi}
+
+server:
+  resources:
+    requests: {cpu: 25m, memory: 64Mi}
+    limits: {memory: 256Mi}
+
+repoServer:
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {memory: 768Mi}
+
+applicationSet:
+  resources:
+    requests: {cpu: 25m, memory: 64Mi}
+    limits: {memory: 256Mi}
+
+redis:
+  resources:
+    requests: {cpu: 25m, memory: 32Mi}
+    limits: {memory: 128Mi}

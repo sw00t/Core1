@@ -1,0 +1,26 @@
+# App of apps. Applied once by `core1 up`; after that Argo CD keeps it in step with this file.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: core1
+    core1.io/layer: bootstrap
+    core1.io/cluster: mgmt
+spec:
+  project: default
+  source:
+    repoURL: __CORE1_GITOPS_URL__
+    targetRevision: main
+    path: bootstrap
+  destination:
+    name: mgmt
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    retry:
+      limit: 10
+      backoff: {duration: 10s, factor: 2, maxDuration: 3m}

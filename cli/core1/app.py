@@ -5,11 +5,12 @@ from typing import Optional
 
 import typer
 
-from . import clusters
+from . import argocd, clusters, dns, gitops
 from .config import Settings
 from .doctor import run_doctor
 from .endpoints import write_endpoints
-from .nuke import leftovers, nuke as do_nuke
+from .github import GitHub, GitHubError
+from .nuke import nuke as do_nuke
 from .shell import CommandError, log
 from .tools import ensure_tools, require_tools
 
@@ -49,7 +50,7 @@ def guarded(fn):
     """Turn CommandError into a clean message and exit 1."""
     try:
         return fn()
-    except CommandError as e:
+    except (CommandError, GitHubError) as e:
         typer.echo(f"core1: {e}", err=True)
         raise typer.Exit(1)
 
@@ -81,23 +82,87 @@ def up(profile: Profile = typer.Option(Profile.full, help="full (default) or lit
         for c in s.clusters:
             clusters.ensure_cluster(s, c, states)
         write_endpoints(s)
-        log("waiting for green")
-        green = print_results(clusters.wait_green(s, timeout=300))
-        if not green:
-            typer.echo("core1 up: not green after 300s; see above, then ./core1 status", err=True)
+        log("waiting for the clusters")
+        if not print_results(clusters.wait_green(s, timeout=300)):
+            typer.echo("core1 up: clusters not green after 300s; see above, then ./core1 status", err=True)
+            raise typer.Exit(1)
+
+        for c in s.clusters:
+            dns.ensure_dns(s, c)
+        action, head = gitops.sync(s)
+        log(f"core1-gitops main at {head[:7]} ({action})")
+        checkout = s.gitops_checkout
+        if not argocd.installed(s):
+            argocd.install(s, checkout)
+        argocd.register_clusters(s)
+        argocd.ensure_repo_secret(s)
+        argocd.apply_root(s, checkout)
+        argocd.refresh_all(s)
+
+        log("waiting for Argo CD to sync every cluster to main")
+        rows, head = wait_argo(s, timeout=900)
+        typer.echo(argocd.format_rows(rows, head))
+        if not all(r["ok"] for r in rows):
+            typer.echo("core1 up: Argo CD not synced after 900s; see ./core1 status", err=True)
             raise typer.Exit(1)
         log(f"green in {time.monotonic() - start:.0f}s. Kubeconfigs in .kube/, endpoints in .work/endpoints.json")
 
     guarded(_up)
 
 
+def argo_view(s):
+    """(rows, head) for the Argo CD glance view. Uses the read-only token for main HEAD."""
+    gh = None
+    head = None
+    try:
+        gh = GitHub(s.token("argocd"), s.gitops_repo)
+        head = gh.branch_sha("main")
+    except GitHubError as e:
+        typer.echo(f"  note  main HEAD unknown: {e}", err=True)
+    cache = {}
+
+    def behind(rev):
+        if rev not in cache:
+            try:
+                cache[rev] = gh.commits_behind(rev) if gh else 0
+            except GitHubError:
+                cache[rev] = 0
+        return cache[rev]
+
+    rows = argocd.summarize(argocd.applications(s), gitops.expected_apps(s), head, behind)
+    return rows, head
+
+
+def wait_argo(s, timeout):
+    deadline = time.monotonic() + timeout
+    last = None
+    while True:
+        rows, head = argo_view(s)
+        if all(r["ok"] for r in rows) or time.monotonic() >= deadline:
+            return rows, head
+        summary = ", ".join(f"{r['cluster']} {r['synced']}/{r['expected']} {r['position']}" for r in rows)
+        if summary != last:
+            log(f"Argo CD: {summary}")
+            last = summary
+        time.sleep(10)
+
+
 @app.command()
-def status():
-    """Clusters, nodes, system pods, registry."""
+def status(watch: bool = typer.Option(False, "--watch", "-w", help="Refresh the Argo CD view every 5 s until Ctrl-C")):
+    """Clusters, nodes, system pods, registry, and Argo CD sync against main."""
     s = settings()
 
     def _status():
         require_tools(s)
+        if watch:
+            try:
+                while True:
+                    rows, head = argo_view(s)
+                    typer.echo("\033[2J\033[H" + time.strftime("%H:%M:%S  ") + argocd.format_rows(rows, head)
+                               + "\n\n(Ctrl-C to stop)")
+                    time.sleep(5)
+            except KeyboardInterrupt:
+                return
         states = clusters.cluster_states(s)
         for c in s.clusters:
             st = states.get(c.name)
@@ -107,7 +172,14 @@ def status():
                 (sr, st_), (ar, at) = st["servers"], st["agents"]
                 typer.echo(f"  {c.name:6} servers {sr}/{st_} agents {ar}/{at}  API 127.0.0.1:{c.api_port}  "
                            f"HTTP {c.http_port}  HTTPS {c.https_port}")
-        if not print_results(clusters.check_all(s)):
+        ok = print_results(clusters.check_all(s))
+        if argocd.installed(s):
+            rows, head = argo_view(s)
+            typer.echo(argocd.format_rows(rows, head))
+            ok = ok and all(r["ok"] for r in rows)
+        else:
+            typer.echo("Argo CD  not installed yet (./core1 up)")
+        if not ok:
             raise typer.Exit(1)
 
     guarded(_status)

@@ -1,0 +1,44 @@
+# One Application per platform/<component>/overlays/<cluster> folder, deployed to that cluster.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: platform
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: core1
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - git:
+        repoURL: __CORE1_GITOPS_URL__
+        revision: main
+        directories:
+          - path: platform/*/overlays/*
+  template:
+    metadata:
+      name: "{{ index .path.segments 1 }}-{{ .path.basename }}"
+      labels:
+        app.kubernetes.io/part-of: core1
+        core1.io/layer: platform
+        core1.io/component: "{{ index .path.segments 1 }}"
+        core1.io/cluster: "{{ .path.basename }}"
+    spec:
+      project: platform
+      source:
+        repoURL: __CORE1_GITOPS_URL__
+        targetRevision: main
+        path: "{{ .path.path }}"
+      destination:
+        name: "{{ .path.basename }}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
+          - SkipDryRunOnMissingResource=true
+        retry:
+          limit: 20
+          backoff: {duration: 10s, factor: 2, maxDuration: 3m}

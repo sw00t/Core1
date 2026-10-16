@@ -11,6 +11,7 @@ REGISTRY_NAME = "registry"  # k3d prefixes it: container k3d-registry
 REGISTRY_CONTAINER = "k3d-registry"
 REGISTRY_INTERNAL_PORT = 5000
 DEFAULT_PORT_BASE = 17000
+DEFAULT_GITOPS_REPO = "sw00t/core1-gitops"
 
 
 def parse_env_file(path):
@@ -111,3 +112,26 @@ class Settings:
 
     def tool(self, name):
         return self.bin_dir / name
+
+    # ---- GitOps repo and tokens ----
+
+    @property
+    def gitops_repo(self):
+        """owner/name of the GitOps repo on GitHub."""
+        return self.get("CORE1_GITOPS_REPO", DEFAULT_GITOPS_REPO)
+
+    @property
+    def gitops_url(self):
+        return f"https://github.com/{self.gitops_repo}.git"
+
+    @property
+    def gitops_template(self):
+        return self.root / "gitops"
+
+    @property
+    def gitops_checkout(self):
+        return self.work_dir / "gitops"
+
+    def token(self, which):
+        """GitHub token from the environment or .env: which is 'argocd' or 'automation'."""
+        return self.get(f"CORE1_GITHUB_TOKEN_{which.upper()}")
