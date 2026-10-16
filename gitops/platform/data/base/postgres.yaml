@@ -1,0 +1,20 @@
+# Postgres for the reference app (stands in for RDS or Cloud SQL). CloudNativePG creates core1-db-app
+# (user, password, uri) itself; apps read it, nobody types it.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: core1-db
+  labels:
+    app.kubernetes.io/part-of: core1
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.11-minimal-trixie
+  bootstrap:
+    initdb:
+      database: core1
+      owner: core1
+  storage:
+    size: 2Gi
+  resources:
+    requests: {cpu: 50m, memory: 192Mi}
+    limits: {memory: 384Mi}

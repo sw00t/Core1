@@ -13,7 +13,7 @@ def settings(**env):
 def test_ci_tool_pins_match_host_pins():
     host = parse_env_file(ROOT / "versions.env")
     ci = parse_env_file(ROOT / "gitops" / "ci" / "versions.env")
-    for key in ("KUSTOMIZE_VERSION", "KUBECONFORM_VERSION", "HELM_VERSION"):
+    for key in ("KUSTOMIZE_VERSION", "KUBECONFORM_VERSION", "HELM_VERSION", "KYVERNO_VERSION"):
         assert ci[key] == host[key], key
     assert ci["KUBERNETES_VERSION"] in host["K3S_IMAGE"].replace("-k3s1", "")
 
@@ -123,3 +123,16 @@ def test_dns_override_covers_every_cluster():
     text = override(settings())
     for c in ("mgmt", "stage", "prod"):
         assert f"{c}\\.localhost\\.$ k3d-{c}-serverlb." in text
+
+
+def test_openbao_policy_is_read_only_and_scoped():
+    from core1.openbao import policy
+    p = policy("stage")
+    assert 'path "core1/data/stage/*"' in p and 'path "core1/data/shared/*"' in p
+    assert '"read"' in p and "create" not in p and "update" not in p and "mgmt" not in p
+
+
+def test_multiline_placeholder_keeps_yaml_indentation():
+    text = "a:\n  rootCA: |\n    __X__\n  b: 1"
+    out = gitops._replace_indented(text, "__X__", "line1\nline2\nline3")
+    assert out == "a:\n  rootCA: |\n    line1\n    line2\n    line3\n  b: 1"

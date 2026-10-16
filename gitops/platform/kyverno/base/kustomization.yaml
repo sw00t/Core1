@@ -1,0 +1,15 @@
+# Kyverno admission control in stage and prod, with the policies from policies/ (also run in CI).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - ../../../policies
+helmCharts:
+  - name: kyverno
+    repo: https://kyverno.github.io/kyverno
+    version: 3.9.1  # Kyverno v1.19.1
+    releaseName: kyverno
+    namespace: kyverno
+    includeCRDs: true
+    skipTests: true
+    valuesFile: values.yaml

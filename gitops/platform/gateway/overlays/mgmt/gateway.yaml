@@ -1,0 +1,56 @@
+# The mgmt gateway: *.mgmt.localhost on the same ports inside the cluster and on the host (127.0.0.1).
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: gateway-tls
+  namespace: gateway
+  labels:
+    app.kubernetes.io/part-of: core1
+spec:
+  secretName: gateway-tls
+  issuerRef: {kind: ClusterIssuer, name: core1-ca}
+  commonName: "*.mgmt.localhost"
+  dnsNames: ["*.mgmt.localhost", "mgmt.localhost"]
+  privateKey: {algorithm: ECDSA, size: 256}
+  duration: 2160h
+  renewBefore: 360h
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: core1
+  namespace: gateway
+  labels:
+    app.kubernetes.io/part-of: core1
+spec:
+  gatewayClassName: envoy
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: __CORE1_MGMT_HTTP_PORT__
+      hostname: "*.mgmt.localhost"
+      allowedRoutes: {namespaces: {from: All}}
+    - name: https
+      protocol: HTTPS
+      port: __CORE1_MGMT_HTTPS_PORT__
+      hostname: "*.mgmt.localhost"
+      tls:
+        mode: Terminate
+        certificateRefs: [{group: "", kind: Secret, name: gateway-tls}]
+      allowedRoutes: {namespaces: {from: All}}
+---
+# Plain HTTP answers with a redirect to HTTPS.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: https-redirect
+  namespace: gateway
+  labels:
+    app.kubernetes.io/part-of: core1
+spec:
+  parentRefs: [{group: gateway.networking.k8s.io, kind: Gateway, name: core1, sectionName: http}]
+  rules:
+    - matches: [{path: {type: PathPrefix, value: /}}]
+      filters:
+        - type: RequestRedirect
+          requestRedirect: {scheme: https, port: __CORE1_MGMT_HTTPS_PORT__, statusCode: 301}

@@ -1,0 +1,9 @@
+# Managed data services for the app, one set per environment: Postgres, Kafka, Valkey.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: data
+resources:
+  - namespace.yaml
+  - postgres.yaml
+  - kafka.yaml
+  - valkey.yaml

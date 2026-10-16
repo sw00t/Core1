@@ -1,0 +1,10 @@
+# Issues from the lab root CA. The core1-ca Secret in cert-manager holds the CA certificate and key.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: core1-ca
+  labels:
+    app.kubernetes.io/part-of: core1
+spec:
+  ca:
+    secretName: core1-ca

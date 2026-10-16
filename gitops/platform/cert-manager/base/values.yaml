@@ -1,0 +1,15 @@
+# cert-manager for the Core1 lab: single replicas, small limits.
+crds:
+  enabled: true
+  keep: true
+resources:
+  requests: {cpu: 10m, memory: 48Mi}
+  limits: {memory: 192Mi}
+webhook:
+  resources:
+    requests: {cpu: 10m, memory: 24Mi}
+    limits: {memory: 96Mi}
+cainjector:
+  resources:
+    requests: {cpu: 10m, memory: 48Mi}
+    limits: {memory: 192Mi}

@@ -1,0 +1,5 @@
+# Strimzi 1.2.0 for the Core1 lab: watches only the data namespace.
+watchNamespaces: [data]
+resources:
+  requests: {cpu: 50m, memory: 256Mi}
+  limits: {memory: 384Mi}

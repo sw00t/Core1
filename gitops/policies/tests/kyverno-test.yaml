@@ -1,0 +1,100 @@
+# Expected results for every rule against every test pod. Run: kyverno test policies/tests
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: core1-baseline
+policies:
+  - ../baseline.yaml
+resources:
+  - resources.yaml
+results:
+  - policy: core1-baseline
+    rule: require-requests-and-limits
+    kind: Pod
+    result: fail
+    resources: [bad-no-limits]
+  - policy: core1-baseline
+    rule: require-requests-and-limits
+    kind: Pod
+    result: pass
+    resources: [good, bad-latest, bad-untagged, bad-privileged, bad-hostpath, bad-root, bad-no-label]
+  - policy: core1-baseline
+    rule: require-requests-and-limits
+    kind: Pod
+    result: skip
+    resources: [platform-exempt]
+  - policy: core1-baseline
+    rule: disallow-latest-tag
+    kind: Pod
+    result: fail
+    resources: [bad-latest, bad-untagged]
+  - policy: core1-baseline
+    rule: disallow-latest-tag
+    kind: Pod
+    result: pass
+    resources: [good, bad-no-limits, bad-privileged, bad-hostpath, bad-root, bad-no-label]
+  - policy: core1-baseline
+    rule: disallow-latest-tag
+    kind: Pod
+    result: skip
+    resources: [platform-exempt]
+  - policy: core1-baseline
+    rule: disallow-privileged
+    kind: Pod
+    result: fail
+    resources: [bad-privileged]
+  - policy: core1-baseline
+    rule: disallow-privileged
+    kind: Pod
+    result: pass
+    resources: [good, bad-no-limits, bad-latest, bad-untagged, bad-hostpath, bad-root, bad-no-label]
+  - policy: core1-baseline
+    rule: disallow-privileged
+    kind: Pod
+    result: skip
+    resources: [platform-exempt]
+  - policy: core1-baseline
+    rule: disallow-host-path
+    kind: Pod
+    result: fail
+    resources: [bad-hostpath]
+  - policy: core1-baseline
+    rule: disallow-host-path
+    kind: Pod
+    result: pass
+    resources: [good, bad-no-limits, bad-latest, bad-untagged, bad-privileged, bad-root, bad-no-label]
+  - policy: core1-baseline
+    rule: disallow-host-path
+    kind: Pod
+    result: skip
+    resources: [platform-exempt]
+  - policy: core1-baseline
+    rule: require-run-as-non-root
+    kind: Pod
+    result: fail
+    resources: [bad-root]
+  - policy: core1-baseline
+    rule: require-run-as-non-root
+    kind: Pod
+    result: pass
+    resources: [good, bad-no-limits, bad-latest, bad-untagged, bad-privileged, bad-hostpath, bad-no-label]
+  - policy: core1-baseline
+    rule: require-run-as-non-root
+    kind: Pod
+    result: skip
+    resources: [platform-exempt]
+  - policy: core1-baseline
+    rule: require-part-of-label
+    kind: Pod
+    result: fail
+    resources: [bad-no-label]
+  - policy: core1-baseline
+    rule: require-part-of-label
+    kind: Pod
+    result: pass
+    resources: [good, bad-no-limits, bad-latest, bad-untagged, bad-privileged, bad-hostpath, bad-root]
+  - policy: core1-baseline
+    rule: require-part-of-label
+    kind: Pod
+    result: skip
+    resources: [platform-exempt]

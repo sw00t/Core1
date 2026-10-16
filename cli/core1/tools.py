@@ -13,9 +13,10 @@ from pathlib import Path
 
 from .shell import CommandError, log, run, warn
 
-TOOLS = ("k3d", "kubectl", "helm", "kustomize", "kubeconform")
+TOOLS = ("k3d", "kubectl", "helm", "kustomize", "kubeconform", "kyverno")
 VERSION_KEYS = {"k3d": "K3D_VERSION", "kubectl": "KUBECTL_VERSION", "helm": "HELM_VERSION",
-                "kustomize": "KUSTOMIZE_VERSION", "kubeconform": "KUBECONFORM_VERSION"}
+                "kustomize": "KUSTOMIZE_VERSION", "kubeconform": "KUBECONFORM_VERSION",
+                "kyverno": "KYVERNO_VERSION"}
 
 
 def host_os_arch():
@@ -115,6 +116,13 @@ def _download(name, version, os_name, arch, tmp):
         fetch(tmp / tgz, f"{base}/{tgz}")
         fetch(tmp / "CHECKSUMS", f"{base}/CHECKSUMS")
         return _extract_checked(tmp, tgz, checksum_from_list((tmp / "CHECKSUMS").read_text(), tgz), "kubeconform")
+    elif name == "kyverno":
+        base = f"https://github.com/kyverno/kyverno/releases/download/{version}"
+        cpu = "x86_64" if arch == "amd64" else arch
+        tgz = f"kyverno-cli_{version}_{os_name}_{cpu}.tar.gz"
+        fetch(tmp / tgz, f"{base}/{tgz}")
+        fetch(tmp / "checksums.txt", f"{base}/checksums.txt")
+        return _extract_checked(tmp, tgz, checksum_from_list((tmp / "checksums.txt").read_text(), tgz), "kyverno")
     else:
         raise ValueError(name)
     got = sha256_of(binary)

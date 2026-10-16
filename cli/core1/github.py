@@ -82,6 +82,15 @@ class GitHub:
         _, prs, _ = self.request("GET", self.repo_path(f"/pulls?state=open&head={owner}:{branch}"))
         return prs[0] if prs else None
 
+    def open_prs(self, branch_prefix):
+        """Open PRs whose head branch starts with BRANCH_PREFIX."""
+        _, prs, _ = self.request("GET", self.repo_path("/pulls?state=open&per_page=50"))
+        return [p for p in prs if p["head"]["ref"].startswith(branch_prefix)]
+
+    def close_pr(self, number, comment):
+        self.request("POST", self.repo_path(f"/issues/{number}/comments"), {"body": comment})
+        self.request("PATCH", self.repo_path(f"/pulls/{number}"), {"state": "closed"})
+
     def create_pr(self, branch, title, body, base="main"):
         _, pr, _ = self.request("POST", self.repo_path("/pulls"),
                                 {"title": title, "head": branch, "base": base, "body": body})

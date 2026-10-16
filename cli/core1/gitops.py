@@ -12,7 +12,7 @@ import subprocess
 from .github import GitHub, GitHubError
 from .shell import CommandError, docker_env, log, run
 
-OWNED = ("bootstrap", "platform", "ci", ".github", ".core1", ".gitignore", "README.md")
+OWNED = ("bootstrap", "platform", "policies", "ci", ".github", ".core1", ".gitignore", "README.md")
 PLACEHOLDER = "__CORE1_GITOPS_URL__"
 SEED_FILE = ".core1/seed.json"
 SKIP_DIRS = {"charts", ".ci-bin", "__pycache__"}
@@ -31,10 +31,42 @@ def template_files(settings):
     return files
 
 
+CA_PLACEHOLDER = "__CORE1_CA_PEM__"
+
+
+def placeholders(settings):
+    """Values the template leaves open: the repo URL, each cluster's gateway ports, the lab CA certificate."""
+    values = {PLACEHOLDER: settings.gitops_url}
+    for c in settings.clusters:
+        values[f"__CORE1_{c.name.upper()}_HTTP_PORT__"] = str(c.http_port)
+        values[f"__CORE1_{c.name.upper()}_HTTPS_PORT__"] = str(c.https_port)
+    ca = settings.root / ".ca" / "ca.crt"
+    values[CA_PLACEHOLDER] = ca.read_text().strip() if ca.exists() else "(lab CA not created yet)"
+    return values
+
+
+def _replace_indented(text, key, value):
+    """Replace KEY with a possibly multi-line VALUE, indenting continuation lines to KEY's column (YAML blocks)."""
+    out = []
+    for line in text.split("\n"):
+        while key in line:
+            col = line.index(key)
+            lines = value.split("\n")
+            filled = lines[0] + "".join("\n" + " " * col + l for l in lines[1:])
+            line = line[:col] + filled + line[col + len(key):]
+        out.append(line)
+    return "\n".join(out)
+
+
 def render(settings, rel):
-    """Template file content with the repo URL filled in (bytes)."""
+    """Template file content with placeholders filled in (bytes)."""
     data = (settings.gitops_template / rel).read_bytes()
-    return data.replace(PLACEHOLDER.encode(), settings.gitops_url.encode())
+    if not any(k.encode() in data for k in placeholders(settings)):
+        return data
+    text = data.decode()
+    for key, value in placeholders(settings).items():
+        text = _replace_indented(text, key, value)
+    return text.encode()
 
 
 def template_hash(settings):
@@ -150,6 +182,11 @@ def sync(settings):
     head = _git(settings, "rev-parse", "HEAD").stdout.strip()
     pr = gh.open_pr_for(branch) or gh.create_pr(branch, title, body)
     log(f"opened PR #{pr['number']}: {pr['html_url']}")
+    for old in gh.open_prs("core1/platform-"):
+        if old["number"] != pr["number"]:
+            gh.close_pr(old["number"], f"Superseded by #{pr['number']}.")
+            gh.delete_branch(old["head"]["ref"])
+            log(f"closed superseded PR #{old['number']}")
 
     def waiting(run_):
         state = run_.get("status") if run_ else "not started"
@@ -166,9 +203,11 @@ def sync(settings):
 
 
 def expected_apps(settings):
-    """{cluster: number of platform Applications the template defines} plus the root app in mgmt."""
+    """{cluster: number of platform Applications on main} plus the root app in mgmt. Counts from the merged
+    checkout in .work/gitops (what Argo CD sees), falling back to Core1's template before the first sync."""
     counts = {c.name: 0 for c in settings.clusters}
-    for d in (settings.gitops_template / "platform").glob("*/overlays/*"):
+    source = settings.gitops_checkout if (settings.gitops_checkout / "platform").is_dir() else settings.gitops_template
+    for d in (source / "platform").glob("*/overlays/*"):
         if d.is_dir() and d.name in counts:
             counts[d.name] += 1
     counts["mgmt"] += 1  # root

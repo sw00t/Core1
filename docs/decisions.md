@@ -31,10 +31,62 @@ Checked against GitHub releases, PyPI, and image manifests.
   Kubernetes client. Fewer dependencies, same commands a human would run.
 - All three clusters and the registry share one Docker network, `core1`. mgmt reaches the stage and prod API servers
   (phase 2) and receives remote-write (phase 3) without going through the host.
-- Traefik is disabled. servicelb stays enabled so a Gateway API LoadBalancer Service gets node ports 80 and 443,
-  which the k3d load balancer maps to the host gateway ports.
+- Traefik is disabled. servicelb stays enabled so a Gateway API LoadBalancer Service gets node ports, which the k3d
+  load balancer maps to the host gateway ports. (Phase 2 changed the mapping to the same port number inside and
+  outside; see below.)
 - Host ports bind to `127.0.0.1` only. Blocks: registry 17000, mgmt 171xx, stage 172xx, prod 173xx
   (API x43, HTTP x80, HTTPS x81). `CORE1_PORT_BASE` moves all of them.
 - The CLI sets `DOCKER_HOST=unix://$HOME/.docker/run/docker.sock` when it is unset. The Docker Desktop default socket
   setting stays off.
 - `core1 nuke` removes runtime state. `core1 nuke --all` also removes `.bin`, `.venv`, and the images Core1 pulled.
+
+## 2026-10-16: Phase 2 platform components
+
+Rule: the newest minor whose .0 is at least four weeks old, at its latest patch. Licences from the GitHub repos;
+arm64 from each image's manifest list. Charts are rendered by kustomize (`helmCharts`), the same way in Argo CD and
+in CI.
+
+| Component | Pin | Licence | Maintenance | arm64 | Notes |
+|---|---|---|---|---|---|
+| Argo CD | v3.5.5 (chart 10.10.5) | Apache-2.0 | 3.5.0 on 2026-08-04, 3.5.5 on 2026-10-12 | yes | Dex off; OIDC straight to Keycloak |
+| Redis (Argo CD cache) | 8.6.4-alpine (chart default) | AGPLv3 / RSALv2 / SSPLv1, choice of one | Active | yes | Internal use under AGPLv3 is fine. Valkey is a drop-in option if this ever matters |
+| Keycloak | 26.7.5 | Apache-2.0 | 26.8.0 is two weeks old | yes | Plain manifests; realm re-imported from git on every start |
+| OpenBao | 2.6.4 (chart 0.29.6) | MPL-2.0 | 2.7.0 is three weeks old | yes | Standalone, raft storage, initialised and unsealed by `core1 up` |
+| External Secrets | v2.11.0 (chart 2.11.0) | Apache-2.0 | 2.11.0 on 2026-09-18; 2.12 and 2.13 too new | yes | |
+| cert-manager | v1.21.2 | Apache-2.0 | 1.21.0 on 2026-07-08 | yes | |
+| Envoy Gateway | v1.9.2 | Apache-2.0 | 1.9.0 on 2026-08-15 | yes | Ships Gateway API CRDs |
+| Kyverno | v1.19.1 (chart 3.9.1) | Apache-2.0 | 1.19.0 on 2026-08-20 | yes | stage and prod; CLI in CI and `.bin` |
+| CloudNativePG | 1.30.1 (chart 0.29.1) | Apache-2.0 | 1.30.0 on 2026-06-29 | yes | Postgres image 17.11-minimal-trixie |
+| Strimzi | 1.2.0, Kafka 4.3.1 | Apache-2.0 | 1.3.0 is four days old | yes | KRaft, one dual-role node |
+| Valkey | 9.1.2 | BSD-3-Clause | 9.1.0 on 2026-05-19 | yes | Plain StatefulSet |
+| kustomize, kubeconform | v5.8.3, v0.8.0 | Apache-2.0 | Active | darwin-arm64 binaries | |
+| datreeio CRDs-catalog | commit 63669a5 (2026-10-08) | Apache-2.0 | Active | n/a | CRD schemas for kubeconform |
+
+Rejected: **Redpanda** (BSL 1.1, source-available; it would allow this use, but S chose Apache Kafka).
+
+## 2026-10-16: Phase 2 design choices
+
+- **One URL inside and outside.** `*.<cluster>.localhost` resolves to 127.0.0.1 in browsers and, through a
+  CoreDNS rewrite, to `k3d-<cluster>-serverlb` in pods. Gateway listeners use the host port numbers, so OIDC
+  issuer URLs match everywhere.
+- **Lab CA.** Created once by `core1 up` in `.ca/`, copied into each cluster's cert-manager namespace at bootstrap.
+  Not delivered through External Secrets: stage and prod need it to trust OpenBao in the first place.
+- **GitOps seeding.** Core1 owns fixed paths in `core1-gitops`; `up` opens a PR when its template differs, waits
+  for CI, and squash-merges. Other paths (apps, packs) are never touched.
+- **Argo CD settings.** 30 s polling; `reposerver.parallelism.limit: 1` (apps for several clusters share a base
+  folder and parallel chart pulls collide); server-side diff on, plus Gateway API defaults written out in the
+  manifests, so defaulted fields are not reported as drift.
+- **Secrets.** OpenBao in mgmt; one Kubernetes auth mount per cluster; stage and prod are reviewed with the
+  client's own token (External Secrets has auth-delegator), so no long-lived reviewer token exists. Tokens from
+  OpenBao live 15 minutes. GitHub tokens are written from `.env` on every `up`, so a rotated token reaches the
+  cluster. Lab trade-offs: the unseal key and root token sit in `.work/openbao/init.json`; Argo CD's cluster
+  credentials for stage and prod are long-lived ServiceAccount tokens created at bootstrap.
+- **Identity.** Keycloak realm `core1` with groups `core1-admins` and `core1-viewers`. Argo CD maps them to admin and
+  read-only; nobody else gets a role.
+- **Policy.** One ClusterPolicy (`core1-baseline`), enforced in every namespace except the platform's own. The same
+  file runs in CI with `kyverno apply` against each rendered folder, plus `kyverno test` cases. Namespace exclusion
+  by name (not label) because the CLI in CI cannot see namespace labels.
+- **CI skips.** kubeconform skips CRD definitions and `external-secrets.io/v1` store kinds (the catalog schema does
+  not compile); External Secrets' webhook validates those in the cluster.
+- **Data services.** Kafka uses a plain internal listener without auth (lab trade-off). Postgres credentials are
+  generated by CloudNativePG; the Valkey password by `core1 up` into OpenBao.

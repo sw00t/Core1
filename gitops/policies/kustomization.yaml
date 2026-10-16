@@ -1,0 +1,5 @@
+# Kyverno policies, shared by the clusters (platform/kyverno overlays) and CI (ci/validate.sh).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - baseline.yaml

@@ -1,0 +1,53 @@
+# Valkey 9.1.2 as the app cache (stands in for ElastiCache). The valkey Secret comes from each overlay.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: valkey
+  labels:
+    app.kubernetes.io/name: valkey
+    app.kubernetes.io/part-of: core1
+spec:
+  serviceName: valkey
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: valkey
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: valkey
+        app.kubernetes.io/part-of: core1
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+      containers:
+        - name: valkey
+          image: valkey/valkey:9.1.2
+          args: ["--requirepass", "$(VALKEY_PASSWORD)", "--save", "", "--appendonly", "no",
+                 "--maxmemory", "96mb", "--maxmemory-policy", "allkeys-lru"]
+          env:
+            - name: VALKEY_PASSWORD
+              valueFrom: {secretKeyRef: {name: valkey, key: password}}
+          ports:
+            - {name: valkey, containerPort: 6379}
+          readinessProbe:
+            tcpSocket: {port: valkey}
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 10m, memory: 64Mi}
+            limits: {memory: 160Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: valkey
+  labels:
+    app.kubernetes.io/name: valkey
+    app.kubernetes.io/part-of: core1
+spec:
+  selector:
+    app.kubernetes.io/name: valkey
+  ports:
+    - {name: valkey, port: 6379, targetPort: valkey}

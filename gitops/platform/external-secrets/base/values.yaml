@@ -1,0 +1,15 @@
+# External Secrets for the Core1 lab: single replicas, small limits.
+installCRDs: true
+# OpenBao reviews this ServiceAccount's own token against this cluster's API, so it needs auth-delegator.
+systemAuthDelegator: true
+resources:
+  requests: {cpu: 10m, memory: 48Mi}
+  limits: {memory: 192Mi}
+webhook:
+  resources:
+    requests: {cpu: 10m, memory: 32Mi}
+    limits: {memory: 128Mi}
+certController:
+  resources:
+    requests: {cpu: 10m, memory: 48Mi}
+    limits: {memory: 192Mi}

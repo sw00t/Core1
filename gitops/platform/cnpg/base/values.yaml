@@ -1,0 +1,7 @@
+# CloudNativePG operator for the Core1 lab: one replica, small limits.
+replicaCount: 1
+crds:
+  create: true
+resources:
+  requests: {cpu: 25m, memory: 64Mi}
+  limits: {memory: 256Mi}

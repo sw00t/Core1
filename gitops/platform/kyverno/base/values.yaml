@@ -1,0 +1,5 @@
+# Kyverno for the Core1 lab: chart defaults are already single replica with small limits.
+webhooksCleanup:
+  enabled: false  # pre-delete hook with an unpinned image; Argo CD prunes webhooks with the app
+cleanupController:
+  enabled: false  # no cleanup policies in the lab

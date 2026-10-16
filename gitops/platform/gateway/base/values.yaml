@@ -1,0 +1,7 @@
+# Envoy Gateway for the Core1 lab: one controller replica, small limits.
+deployment:
+  replicas: 1
+  envoyGateway:
+    resources:
+      requests: {cpu: 25m, memory: 64Mi}
+      limits: {memory: 256Mi}

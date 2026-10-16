@@ -38,6 +38,34 @@ def install(settings, checkout):
     wait_ready(settings)
 
 
+def controller_running(settings):
+    r = kubectl(settings, mgmt(settings), "-n", NS, "get", "pod", "argocd-application-controller-0",
+                "-o", "jsonpath={.status.containerStatuses[0].ready}", check=False)
+    return r.returncode == 0 and r.stdout.strip() == "true"
+
+
+def repair_if_down(settings, checkout, grace=60):
+    """Bootstrap repair: if the application controller is not running, Argo CD cannot apply its own fix from
+    git. Re-apply Argo CD from the merged main (the same render the first install used)."""
+    deadline = time.monotonic() + grace
+    while time.monotonic() < deadline:
+        if controller_running(settings):
+            return False
+        time.sleep(5)
+    log("Argo CD application controller is not running; re-applying Argo CD from main (bootstrap repair)")
+    # A sync of Argo CD itself that was cut short stays recorded on its Application; on restart the controller
+    # would resume it and re-apply the old revision. Drop it first.
+    kubectl(settings, mgmt(settings), "-n", NS, "patch", "application", "argocd-mgmt", "--type", "merge",
+            "-p", json.dumps({"operation": None, "status": {"operationState": None}}), check=False)
+    rendered = run([settings.tool("kustomize"), "build", "--enable-helm", str(checkout / "platform/argocd/overlays/mgmt")],
+                   env=docker_env(settings), timeout=300).stdout
+    kubectl(settings, mgmt(settings), "apply", "--server-side", "--force-conflicts", "-f", "-", input=rendered, timeout=300)
+    # A StatefulSet does not replace a pod that never became ready; delete it so the new spec takes effect.
+    kubectl(settings, mgmt(settings), "-n", NS, "delete", "pod", "argocd-application-controller-0", "--wait=false", check=False)
+    wait_ready(settings)
+    return True
+
+
 def wait_ready(settings, timeout=300):
     m = mgmt(settings)
     for d in COMPONENT_DEPLOYMENTS:
@@ -97,6 +125,8 @@ def ensure_repo_secret(settings):
     m = mgmt(settings)
     if kubectl(settings, m, "-n", NS, "get", "secret", "repo-core1-gitops", check=False).returncode == 0:
         return
+    if kubectl(settings, m, "-n", NS, "get", "externalsecret", "repo-core1-gitops", check=False).returncode == 0:
+        return  # External Secrets will (re)create it
     token = settings.token("argocd")
     if not token:
         raise CommandError("CORE1_GITHUB_TOKEN_ARGOCD missing in .env")
@@ -104,6 +134,31 @@ def ensure_repo_secret(settings):
                                     {"type": "git", "url": settings.gitops_url, "username": "core1-argocd",
                                      "password": token}))
     log("Argo CD repo credentials created (bootstrap)")
+
+
+def handover_repo_secret(settings, timeout=180):
+    """Once the ExternalSecret exists, replace the bootstrap copy with the one External Secrets owns."""
+    m = mgmt(settings)
+    deadline = time.monotonic() + timeout
+    while kubectl(settings, m, "-n", NS, "get", "externalsecret", "repo-core1-gitops", check=False).returncode != 0:
+        if time.monotonic() > deadline:
+            raise CommandError("ExternalSecret repo-core1-gitops not created by Argo CD; check the argocd-mgmt app")
+        time.sleep(5)
+    r = kubectl(settings, m, "-n", NS, "get", "secret", "repo-core1-gitops", "-o", "json", check=False)
+    if r.returncode == 0 and json.loads(r.stdout)["metadata"].get("ownerReferences"):
+        return False  # already owned
+    if r.returncode == 0:
+        kubectl(settings, m, "-n", NS, "delete", "secret", "repo-core1-gitops")
+    kubectl(settings, m, "-n", NS, "annotate", "externalsecret", "repo-core1-gitops",
+            f"force-sync={int(time.time())}", "--overwrite")
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        r = kubectl(settings, m, "-n", NS, "get", "secret", "repo-core1-gitops", "-o", "json", check=False)
+        if r.returncode == 0 and json.loads(r.stdout)["metadata"].get("ownerReferences"):
+            log("Argo CD repo credentials now come from OpenBao through External Secrets")
+            return True
+        time.sleep(5)
+    raise CommandError("External Secrets did not create repo-core1-gitops; check the openbao ClusterSecretStore in mgmt")
 
 
 def apply_root(settings, checkout):

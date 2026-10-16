@@ -36,5 +36,12 @@ check "$tmp/$f" "$(awk '{print $1}' "$tmp/h.sum")"
 tar -xzf "$tmp/$f" -C "$tmp" linux-amd64/helm
 install -m 0755 "$tmp/linux-amd64/helm" "$BIN/helm"
 
+# kyverno CLI (policy gate)
+base="https://github.com/kyverno/kyverno/releases/download/${KYVERNO_VERSION}"
+f="kyverno-cli_${KYVERNO_VERSION}_linux_x86_64.tar.gz"
+fetch "$base/$f" "$tmp/$f"; fetch "$base/checksums.txt" "$tmp/ky.sums"
+check "$tmp/$f" "$(sum_for "$tmp/ky.sums" "$f")"
+tar -xzf "$tmp/$f" -C "$BIN" kyverno
+
 echo "tools in $BIN:"
-"$BIN/kustomize" version; "$BIN/kubeconform" -v; "$BIN/helm" version --short
+"$BIN/kustomize" version; "$BIN/kubeconform" -v; "$BIN/helm" version --short; "$BIN/kyverno" version | sed -n 1p  # sed reads to the end; head would SIGPIPE under pipefail

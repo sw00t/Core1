@@ -1,0 +1,156 @@
+{
+  "realm": "core1",
+  "displayName": "Core1 Lab",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": false,
+  "loginWithEmailAllowed": false,
+  "bruteForceProtected": true,
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 3600,
+  "ssoSessionMaxLifespan": 36000,
+  "groups": [
+    {
+      "name": "core1-admins"
+    },
+    {
+      "name": "core1-viewers"
+    }
+  ],
+  "clientScopes": [
+    {
+      "name": "groups",
+      "description": "Group membership in the groups claim",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "false"
+      },
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "groups",
+            "full.path": "false",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "argocd",
+      "name": "Argo CD",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${ARGOCD_CLIENT_SECRET}",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "rootUrl": "https://argocd.mgmt.localhost:__CORE1_MGMT_HTTPS_PORT__",
+      "redirectUris": [
+        "https://argocd.mgmt.localhost:__CORE1_MGMT_HTTPS_PORT__/auth/callback",
+        "http://localhost:8085/auth/callback"
+      ],
+      "webOrigins": [
+        "https://argocd.mgmt.localhost:__CORE1_MGMT_HTTPS_PORT__"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "+"
+      },
+      "defaultClientScopes": [
+        "groups"
+      ],
+      "protocolMappers": [
+        {
+          "name": "username",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "username",
+            "claim.name": "preferred_username",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "email",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "email",
+            "claim.name": "email",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "full name",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-full-name-mapper",
+          "consentRequired": false,
+          "config": {
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "platform-admin",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Platform",
+      "lastName": "Admin",
+      "email": "platform-admin@core1.localhost",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${PLATFORM_ADMIN_PASSWORD}",
+          "temporary": false
+        }
+      ],
+      "groups": [
+        "core1-admins"
+      ]
+    },
+    {
+      "username": "platform-viewer",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Platform",
+      "lastName": "Viewer",
+      "email": "platform-viewer@core1.localhost",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${PLATFORM_VIEWER_PASSWORD}",
+          "temporary": false
+        }
+      ],
+      "groups": [
+        "core1-viewers"
+      ]
+    }
+  ]
+}

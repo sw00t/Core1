@@ -1,0 +1,14 @@
+# OpenBao: the lab's secret store, in mgmt only. `core1 up` initialises and unseals it.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: openbao
+resources:
+  - namespace.yaml
+  - httproute.yaml
+helmCharts:
+  - name: openbao
+    repo: https://openbao.github.io/openbao-helm
+    version: 0.29.6
+    releaseName: openbao
+    namespace: openbao
+    valuesFile: values.yaml

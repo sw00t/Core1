@@ -45,6 +45,23 @@ No errors or warnings. The k3d tools container and the `host.k3d.internal` CoreD
 the `core1` CLI sets `DOCKER_HOST` itself when it is unset, so the setting stays off. To run `docker` or `k3d` by
 hand against Core1, export the line above first.
 
+## Lab CA and browser trust
+
+Every gateway serves HTTPS with certificates from one lab root CA. `core1 up` creates it once in `.ca/`
+(git-ignored). Plain `nuke` keeps it; `nuke --all` removes it.
+
+Browsers warn about the certificates until the CA is trusted. To trust it for your user only (S runs this; Claude
+Code does not change the keychain):
+
+```
+security add-trusted-cert -r trustRoot -k ~/Library/Keychains/login.keychain-db .ca/ca.crt
+```
+
+Remove it later in Keychain Access (search "Core1 Lab Root CA"). Firefox uses its own store unless
+`security.enterprise_roots.enabled` is on.
+
+URLs: `https://<name>.<cluster>.localhost:<port>`, for example `https://argocd.mgmt.localhost:17181`.
+
 ## Troubleshooting
 
 Carried from v1 `docs/TROUBLESHOOTING.md` where it still applies.

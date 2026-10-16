@@ -5,7 +5,7 @@ from typing import Optional
 
 import typer
 
-from . import argocd, clusters, dns, gitops
+from . import argocd, ca, clusters, datasmoke, dns, gitops, openbao, ssosmoke
 from .config import Settings
 from .doctor import run_doctor
 from .endpoints import write_endpoints
@@ -89,25 +89,47 @@ def up(profile: Profile = typer.Option(Profile.full, help="full (default) or lit
 
         for c in s.clusters:
             dns.ensure_dns(s, c)
+            ca.apply_ca_secret(s, c)
         action, head = gitops.sync(s)
         log(f"core1-gitops main at {head[:7]} ({action})")
         checkout = s.gitops_checkout
         if not argocd.installed(s):
             argocd.install(s, checkout)
+        else:
+            argocd.repair_if_down(s, checkout)
         argocd.register_clusters(s)
         argocd.ensure_repo_secret(s)
         argocd.apply_root(s, checkout)
         argocd.refresh_all(s)
 
+        if openbao.present(checkout):
+            log("waiting for OpenBao")
+            openbao.wait_running(s)
+            openbao.ensure_unsealed(s)
+            openbao.configure(s)
+            openbao.seed_secrets(s)
+            wait_for_crd(s, "externalsecrets.external-secrets.io")
+            argocd.handover_repo_secret(s, timeout=300)
+
         log("waiting for Argo CD to sync every cluster to main")
-        rows, head = wait_argo(s, timeout=900)
+        rows, head = wait_argo(s, timeout=1500)
         typer.echo(argocd.format_rows(rows, head))
         if not all(r["ok"] for r in rows):
-            typer.echo("core1 up: Argo CD not synced after 900s; see ./core1 status", err=True)
+            typer.echo("core1 up: Argo CD not synced after 1500s; see ./core1 status", err=True)
             raise typer.Exit(1)
         log(f"green in {time.monotonic() - start:.0f}s. Kubeconfigs in .kube/, endpoints in .work/endpoints.json")
 
     guarded(_up)
+
+
+def wait_for_crd(s, name, timeout=600):
+    """Block until Argo CD has installed a CRD in mgmt."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if clusters.kubectl(s, s.cluster("mgmt"), "get", "crd", name, check=False).returncode == 0:
+            return
+        time.sleep(5)
+    raise CommandError(f"CRD {name} not installed in mgmt after {timeout}s")
 
 
 def argo_view(s):
@@ -183,6 +205,25 @@ def status(watch: bool = typer.Option(False, "--watch", "-w", help="Refresh the 
             raise typer.Exit(1)
 
     guarded(_status)
+
+
+@app.command()
+def creds():
+    """SSO users and admin logins for the lab, read from OpenBao. Prints secrets: lab use only."""
+    s = settings()
+
+    def _creds():
+        data = openbao.get(s, "mgmt/keycloak")
+        if not data:
+            raise CommandError("no credentials in OpenBao yet; run ./core1 up")
+        port = s.cluster("mgmt").https_port
+        typer.echo(f"Argo CD   https://argocd.mgmt.localhost:{port}   (Log in via Keycloak)")
+        typer.echo(f"Keycloak  https://sso.mgmt.localhost:{port}/realms/core1/account")
+        typer.echo(f"  platform-admin   {data['platform_admin_password']}   (Argo CD admin)")
+        typer.echo(f"  platform-viewer  {data['platform_viewer_password']}   (Argo CD read-only)")
+        typer.echo(f"Keycloak admin console  https://sso.mgmt.localhost:{port}/admin   admin / {data['admin_password']}")
+
+    guarded(_creds)
 
 
 @app.command()
@@ -272,6 +313,10 @@ def test_smoke():
         clusters.require_kubeconfigs(s)
         ok = print_results(clusters.check_all(s))
         ok = print_results(clusters.smoke_pull(s)) and ok
+        if datasmoke.present(s.gitops_checkout):
+            ok = print_results(datasmoke.run(s)) and ok
+        if ssosmoke.present(s.gitops_checkout):
+            ok = print_results(ssosmoke.run(s)) and ok
         if not ok:
             raise typer.Exit(1)
         log("smoke passed")

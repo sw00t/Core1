@@ -16,17 +16,40 @@ notifications:
 
 configs:
   cm:
+    url: https://argocd.mgmt.localhost:__CORE1_MGMT_HTTPS_PORT__
     timeout.reconciliation: 30s
     timeout.reconciliation.jitter: 0s
     kustomize.buildOptions: --enable-helm
-    admin.enabled: true  # turned off once Keycloak SSO is in (phase 2d)
+    admin.enabled: false  # SSO through Keycloak only (core1 creds lists the users)
+    oidc.config: |
+      name: Keycloak
+      issuer: https://sso.mgmt.localhost:__CORE1_MGMT_HTTPS_PORT__/realms/core1
+      clientID: argocd
+      clientSecret: $argocd-oidc:clientSecret
+      requestedScopes: ["openid", "groups"]  # the realm defines only these; name and email come from client mappers
+      enablePKCEAuthentication: true
+      rootCA: |
+        __CORE1_CA_PEM__
+  rbac:
+    # Keycloak groups map to Argo CD roles; anyone else gets nothing.
+    policy.default: ""
+    policy.csv: |
+      g, core1-admins, role:admin
+      g, core1-viewers, role:readonly
+    scopes: "[groups]"
   params:
     server.insecure: true  # TLS ends at the gateway
+    # One manifest render at a time: apps for several clusters share a base folder, and parallel
+    # `kustomize --enable-helm` runs collide when they pull the same chart into it.
+    reposerver.parallelism.limit: 1
+    # Diff against what the API server would store, so defaulted fields (Gateway API, CRDs) are not drift.
+    controller.diff.server.side: "true"
 
 controller:
+  # Caches every resource in three clusters, including large CRDs (Kyverno, Strimzi). 768Mi was OOM-killed.
   resources:
-    requests: {cpu: 100m, memory: 256Mi}
-    limits: {memory: 768Mi}
+    requests: {cpu: 100m, memory: 512Mi}
+    limits: {memory: 2Gi}
 
 server:
   resources:

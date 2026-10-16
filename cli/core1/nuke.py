@@ -53,11 +53,16 @@ def nuke(settings, everything=False):
             if docker.image_present(settings, ref):
                 log(f"removing image {ref}")
                 docker.docker(settings, "rmi", ref, check=False)
-        for d in (settings.bin_dir, settings.venv_dir):
+        for d in cache_dirs(settings):
             if d.exists():
                 log(f"removing {d.relative_to(settings.root)}")
                 shutil.rmtree(d, ignore_errors=True)
     return leftovers(settings, everything)
+
+
+def cache_dirs(settings):
+    """Kept by plain nuke, removed by nuke --all. .ca survives plain nuke so a CA trusted in macOS stays valid."""
+    return (settings.bin_dir, settings.venv_dir, settings.root / ".ca")
 
 
 def leftovers(settings, everything=False):
@@ -77,5 +82,5 @@ def leftovers(settings, everything=False):
         left.append(f"dir {settings.work_dir.relative_to(settings.root)}")
     if everything:
         left += [f"image {r}" for r in core1_images(settings) if docker.image_present(settings, r)]
-        left += [f"dir {d.relative_to(settings.root)}" for d in (settings.bin_dir, settings.venv_dir) if d.exists()]
+        left += [f"dir {d.relative_to(settings.root)}" for d in cache_dirs(settings) if d.exists()]
     return sorted(set(left))

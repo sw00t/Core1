@@ -1,5 +1,6 @@
 # local state (never committed)
 .env
+.ca/
 .bin/
 .work/
 .kube/

@@ -1,0 +1,20 @@
+# Keycloak's database. CloudNativePG creates the keycloak-db-app Secret (user, password) itself.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: keycloak-db
+  namespace: keycloak
+  labels:
+    app.kubernetes.io/part-of: core1
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.11-minimal-trixie
+  bootstrap:
+    initdb:
+      database: keycloak
+      owner: keycloak
+  storage:
+    size: 1Gi
+  resources:
+    requests: {cpu: 25m, memory: 128Mi}
+    limits: {memory: 256Mi}

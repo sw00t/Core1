@@ -1,0 +1,92 @@
+# Core1 baseline for workloads. Enforced everywhere except the platform's own namespaces (upstream charts are
+# reviewed when they are pinned, not by this policy). The same file runs in CI against every rendered overlay.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: core1-baseline
+  labels:
+    app.kubernetes.io/part-of: core1
+  annotations:
+    policies.kyverno.io/title: Core1 workload baseline
+    policies.kyverno.io/description: >-
+      Requests and limits, pinned image tags, no privileged containers or host paths, non-root,
+      and the app.kubernetes.io/part-of label.
+spec:
+  background: true
+  validationFailureAction: Enforce
+  rules:
+    - name: require-requests-and-limits
+      match: &workloads
+        any:
+          - resources:
+              kinds: [Pod]
+      exclude: &platform
+        any:
+          - resources:
+              namespaces: [kube-system, kube-public, kube-node-lease, default, argocd, cert-manager,
+                           envoy-gateway-system, gateway, external-secrets, openbao, cnpg-system, keycloak,
+                           kyverno, strimzi-system, data]
+      validate:
+        message: "Every container needs cpu and memory requests and a memory limit."
+        pattern:
+          spec:
+            containers:
+              - resources:
+                  requests: {cpu: "?*", memory: "?*"}
+                  limits: {memory: "?*"}
+    - name: disallow-latest-tag
+      match: *workloads
+      exclude: *platform
+      validate:
+        message: "Images need an explicit tag other than latest."
+        foreach:
+          - list: "request.object.spec.containers"
+            deny:
+              conditions:
+                any:
+                  - key: "{{ element.image }}"
+                    operator: Equals
+                    value: "*:latest"
+                  - key: "{{ contains(element.image, ':') || contains(element.image, '@') }}"
+                    operator: Equals
+                    value: false
+    - name: disallow-privileged
+      match: *workloads
+      exclude: *platform
+      validate:
+        message: "Privileged containers are not allowed."
+        pattern:
+          spec:
+            =(initContainers):
+              - =(securityContext):
+                  =(privileged): "false"
+            containers:
+              - =(securityContext):
+                  =(privileged): "false"
+    - name: disallow-host-path
+      match: *workloads
+      exclude: *platform
+      validate:
+        message: "hostPath volumes are not allowed."
+        pattern:
+          spec:
+            =(volumes):
+              - X(hostPath): "null"
+    - name: require-run-as-non-root
+      match: *workloads
+      exclude: *platform
+      validate:
+        message: "Pods must set securityContext.runAsNonRoot: true."
+        pattern:
+          spec:
+            securityContext:
+              runAsNonRoot: true
+    - name: require-part-of-label
+      match: *workloads
+      exclude: *platform
+      validate:
+        message: "Pods need the app.kubernetes.io/part-of label."
+        pattern:
+          metadata:
+            labels:
+              app.kubernetes.io/part-of: "?*"
