@@ -10,6 +10,10 @@ def test_checksum_from_list():
     text = "aaa  k3d-linux-amd64\nbbb  k3d-darwin-arm64\nccc *k3d-windows-amd64.exe\n"
     assert tools.checksum_from_list(text, "k3d-darwin-arm64") == "bbb"
     assert tools.checksum_from_list(text, "k3d-windows-amd64.exe") == "ccc"
+    # real k3d v5.9.0 format: directory prefix on every name
+    assert tools.checksum_from_list("ddd  _dist/k3d-darwin-arm64\n", "k3d-darwin-arm64") == "ddd"
+    with pytest.raises(SystemExit):
+        tools.checksum_from_list("eee  _dist/k3d-darwin-arm64\n", "k3d-darwin")
     with pytest.raises(SystemExit):
         tools.checksum_from_list(text, "k3d-plan9-mips")
 

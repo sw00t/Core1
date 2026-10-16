@@ -34,10 +34,11 @@ def sha256_of(path):
 
 
 def checksum_from_list(text, filename):
-    """Find FILENAME in a sha256sum-style list ('<hash>  <name>' per line)."""
+    """Find FILENAME in a sha256sum-style list ('<hash>  <name>' per line). Names may carry a directory
+    prefix (k3d lists '_dist/k3d-darwin-arm64'), so the base name is compared."""
     for line in text.splitlines():
         parts = line.split()
-        if len(parts) >= 2 and parts[-1].lstrip("*") == filename:
+        if len(parts) >= 2 and parts[-1].lstrip("*").rsplit("/", 1)[-1] == filename:
             return parts[0]
     raise SystemExit(f"checksum for {filename} not found")
 
