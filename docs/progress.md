@@ -33,13 +33,21 @@
 
 Phase 1 (host and CLI), after S approves phase 0 and the phase 1 plan.
 
-### Open questions for S before phase 1
+### Decisions from S for phase 1 and 2
 
-1. Cluster names: `mgmt`, `stage`, `prod` as in `DESIGN.md`, or prefixed `core1-mgmt` and so on (used in the spike
-   to avoid clashes with other k3d clusters)?
-2. Python setup for the `core1` CLI: `uv` managing a pinned Python and a project venv, or Homebrew Python 3.11?
-3. Local OCI registry: k3d-managed registry or a separately run one. Phase 1 verifies the candidate.
-4. Docker access: CLI sets `DOCKER_HOST` itself (spike result), or S enables the default socket?
-5. Host port scheme for three clusters (API ports and gateway entry points), for example one block per cluster.
-6. Cluster shape: keep 1 server plus 1 agent per cluster in the full profile?
-7. Before phase 2: GitOps repo owner and name (proposed `sw00t/core1-gitops`), and visibility given the Pro finding.
+1. Cluster names: `mgmt`, `stage`, `prod`. No prefix.
+2. Python for the `core1` CLI: Homebrew Python 3.11.
+3. Local OCI registry: k3d-managed. Phase 1 verifies its image like any other component.
+4. Docker access: the CLI sets `DOCKER_HOST` itself. The default socket setting stays off.
+5. Host ports: one block per cluster, all on `127.0.0.1`. Nothing listened in 16000 to 18999 on 2026-10-15.
+
+   | Block | API | HTTP gateway | HTTPS gateway | Reserved |
+   |---|---|---|---|---|
+   | registry | | | | `17000` |
+   | mgmt | `17143` | `17180` | `17181` | rest of 17100 to 17199 |
+   | stage | `17243` | `17280` | `17281` | rest of 17200 to 17299 |
+   | prod | `17343` | `17380` | `17381` | rest of 17300 to 17399 |
+
+6. Cluster shape: 1 server plus 1 agent per cluster.
+7. GitOps repo: `sw00t/core1-gitops`. It exists, private, default branch `main`. Without GitHub Pro it gets no
+   rulesets or branch protection, so CI can fail a PR but cannot block its merge. Phase 2 plan addresses this.
