@@ -44,6 +44,8 @@ def nuke(settings, everything=False):
 
     for c in settings.clusters:
         c.kubeconfig(settings).unlink(missing_ok=True)
+    if settings.kube_dir.exists() and not any(settings.kube_dir.iterdir()):
+        settings.kube_dir.rmdir()
     shutil.rmtree(settings.work_dir, ignore_errors=True)
 
     if everything:
