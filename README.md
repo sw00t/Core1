@@ -1,15 +1,20 @@
 # Core1
 
+Core1 is a small, realistic enterprise system you can break on purpose: three services and a database on a
+local Kubernetes cluster, with Prometheus, Alertmanager, Grafana and Loki watching them, a config repo that is
+the only way changes reach the cluster, and five scripted incidents with one-command reset. It exists so that an
+agent can be built, demonstrated and evaluated against something that behaves like production without being one.
+
 In its current skin Core1 plays Cascadia Mobile, a fictional regional mobile operator, and the three services are
 its activation platform: gateway (digital channel API), orders (activation orders), inventory (SIM and number stock).
 
-A small, realistic enterprise system you can break on purpose: three services and a database on a
-local Kubernetes cluster, with Prometheus, Alertmanager, Grafana and Loki watching them, a config repo
-that is the only way changes reach the cluster, and five scripted incidents with one-command reset.
+Core1 is the reusable base. The agent, its tools and the evaluation harness live in a separate repo
+(Core1-agent, a Cursor SDK incident agent) and talk to Core1 only through standard APIs: Prometheus, Loki,
+Alertmanager webhooks, the Kubernetes API with a read-only identity, and git.
 
-Core1 is the reusable base. The agent, its tools and the evaluation harness live in a separate repo and
-talk to Core1 only through standard APIs (Prometheus, Loki, Alertmanager webhooks, the Kubernetes API with
-a read-only identity, and git).
+**Status.** `main` is v1: single cluster, telco skin, verified end to end with the incident agent, and frozen at tag
+`v1-frozen`. v2, a multi-cluster rebuild with a generic core and swappable industry packs, is in progress on the
+`v2` branch and is not yet runnable; see that branch's README and `docs/progress.md`.
 
 ## Prerequisites
 
