@@ -13,6 +13,10 @@ Core1 is the reusable base. The agent, its tools and the evaluation harness live
 (Core1-agent, a Cursor SDK incident agent) and talk to Core1 only through standard APIs: Prometheus, Loki,
 Alertmanager webhooks, the Kubernetes API with a read-only identity, and git. Core1-agent is to be a private repo for now. 
 
+## Architecture
+
+![Core1 architecture](docs/core1-architecture.jpg)
+
 **Status.** `main` is v1: single cluster, telco skin, verified end-to-end with the incident agent, and frozen at tag
 `v1-frozen`. v2, a multi-cluster rebuild with a generic core and swappable industry packs (telco, retail, finance), is in progress on the
 `v2` branch and is not yet runnable; please ignore for now, however you can view that branch's README and `docs/progress.md`.
