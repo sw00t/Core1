@@ -18,7 +18,7 @@ lands in `.bin` and `.venv` inside the repo. Nothing is installed system-wide. `
 ## Quick start
 
 ```
-./core1 up          # registry plus mgmt, stage, prod; about 2 minutes from nothing
+./core1 up          # registry plus mgmt, stage, prod; about 3 minutes from nothing, under 2 with images cached
 ./core1 status
 ./core1 test smoke  # green checks plus an image pull through the registry in every cluster
 ./core1 nuke        # delete clusters, registry, network, local state (--all also clears caches)
