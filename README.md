@@ -1,5 +1,8 @@
 # Core1
 
+> **v2 in progress on this branch.** See `DESIGN.md` for the target and `docs/progress.md` for status.
+> The working v1 is frozen at tag `v1-frozen`. Parts of this README describe v1 and will be rewritten in phase 1.
+
 In its current skin Core1 plays Cascadia Mobile, a fictional regional mobile operator, and the three services are
 its activation platform: gateway (digital channel API), orders (activation orders), inventory (SIM and number stock).
 
@@ -40,7 +43,6 @@ make status                 one-screen summary (pods, config repo log, active la
 make scenario N=3           inject scenario 3 (see make scenarios)
 make verify / verify-quick  acceptance tests; reports land in reports/
 make diag                   diagnostics bundle into logs/diag-<timestamp>/
-make runner                 unattended runner (docs/RUNNER.md)
 make help                   everything else
 ```
 
@@ -87,5 +89,5 @@ in `.env`. Tested target: Apple Silicon macOS. Linux amd64/arm64 should work unc
 Windows: WSL2 only, untested. Memory estimate 6 to 8 GB, disk 10 to 15 GB (ceiling enforced by
 `DISK_CEILING_GB`).
 
-More: `docs/DESIGN.md` (what and why), `docs/RUNNER.md` (unattended runs), `docs/DEVELOPING.md`
-(services and tests), `docs/TRACING.md` (how to add tracing later).
+More: `DESIGN.md` (v2 design), `docs/v1-inventory.md` (what happens to each v1 file), `docs/DEVELOPING.md`
+(services and tests).

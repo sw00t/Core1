@@ -1,7 +1,5 @@
 # Grafana Alloy as a single-replica Deployment that tails every pod's logs through the Kubernetes
-# API (no host paths) and ships them to Loki. Labels kept: namespace, pod, container, app.
-# Tracing later: add an otelcol.receiver.otlp block here and a Tempo deployment (see docs/TRACING.md).
-apiVersion: v1
+# API (no host paths) and ships them to Loki. Labels kept: namespace, pod, container, app.apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: alloy
