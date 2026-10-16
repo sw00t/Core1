@@ -15,7 +15,7 @@ Alertmanager webhooks, the Kubernetes API with a read-only identity, and git. Co
 
 ## Architecture
 
-![Core1 architecture](docs/core1-architecture.jpg)
+![Core1 architecture](docs/Core1_Workflow_Animated.gif)
 
 **Status.** `main` is v1: single cluster, telco skin, verified end-to-end with the incident agent, and frozen at tag
 `v1-frozen`. v2, a multi-cluster rebuild with a generic core and swappable industry packs (telco, retail, finance), is in progress on the
