@@ -68,7 +68,7 @@ make help                   Everything else
 | Read-only identity | `rbac/agent-readonly.yaml` | `.kube/agent-readonly.yaml` for the agent; no secrets, no writes |
 | Endpoints | `.work/endpoints.env` | every URL and path the agent layer needs |
 
-## Scenarios
+## Incident Scenarios
 
 | N | Fault | How it shows up |
 |---|---|---|
