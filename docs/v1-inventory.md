@@ -38,7 +38,7 @@ Phase numbers refer to `DESIGN.md` section 13.
 | `scripts/cluster-up.sh` | rewrite (1) | Three clusters plus the local registry in `core1 up` |
 | `scripts/cluster-down.sh` | rewrite (1) | `core1 nuke` |
 | `scripts/clean.sh` | rewrite (1) | `core1 nuke` |
-| `scripts/build-images.sh` | rewrite (1) | Push to the local OCI registry instead of `k3d image import` |
+| `scripts/build-images.sh` | rewrite (5) | Push to the local OCI registry instead of `k3d image import`. Moved from phase 1: no images to build until the neutral app |
 | `scripts/disk_check.py` | delete (1) | v2 removes the disk ceiling. Still called by doctor, status, diag and verify |
 | `scripts/runner.sh` | delete now | See `docs/RUNNER.md`. The `runner` Make target goes with it |
 | `scripts/endpoints.sh` | rewrite (1, 8) | `core1 endpoints` and the `.work/endpoints.json` contract |
@@ -152,3 +152,15 @@ Deleted: `docs/DESIGN.md`, `docs/RUNNER.md`, `docs/TRACING.md`, `scripts/runner.
 
 Edited: `runner` target removed from `Makefile`. `README.md` gets a v2 banner and loses links to deleted docs.
 `observability/alloy/alloy.yaml` loses its pointer to `docs/TRACING.md`.
+
+## Phase 1 deletions and edits
+
+Replaced by the `core1` CLI and deleted: `scripts/bootstrap.sh`, `scripts/doctor.sh`, `scripts/cluster-up.sh`,
+`scripts/cluster-down.sh`, `scripts/clean.sh`, `scripts/status.sh`, `scripts/wait-green.sh`, `scripts/endpoints.sh`,
+`scripts/disk_check.py`, `docs/TROUBLESHOOTING.md` (folded into `docs/host.md`).
+
+Rewritten: `Makefile` (shim over `./core1`), `versions.env` (v2 pins only), `.env.example`, `README.md`, `.gitignore`.
+
+v1 scripts still in the tree (`lib.sh`, `obs-install.sh`, `deploy.sh`, `reset.sh`, `scenario.py`, `diag.sh`,
+`tests/verify.py` and others) are reference only. Nothing calls them, and some point at files removed above. Each
+goes when its phase lands.

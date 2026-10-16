@@ -4,7 +4,6 @@
 .work/
 .kube/
 logs/
-.runner/
 reports/*.json
 **/__pycache__/
 *.pyc

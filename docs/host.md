@@ -41,14 +41,39 @@ With the default socket off, `/var/run/docker.sock` does not exist on the host. 
 export DOCKER_HOST=unix://$HOME/.docker/run/docker.sock
 ```
 
-No errors or warnings. The k3d tools container and the `host.k3d.internal` CoreDNS injection worked. The phase 1 CLI
-should set `DOCKER_HOST` itself so the setting can stay off.
+No errors or warnings. The k3d tools container and the `host.k3d.internal` CoreDNS injection worked. Since phase 1
+the `core1` CLI sets `DOCKER_HOST` itself when it is unset, so the setting stays off. To run `docker` or `k3d` by
+hand against Core1, export the line above first.
 
-## Host tips carried from v1
+## Troubleshooting
 
-- Some networks block the `dl.k8s.io` and `registry.k8s.io` CDNs. v1 worked around this with `KUBECTL_BIN` overrides
-  and by pulling blocked images on the host. Not seen in phase 0: all downloads and pulls succeeded.
-- Some sync tools drop executable bits or write 0600 files. v1 forces modes in the Dockerfile and in git.
+Carried from v1 `docs/TROUBLESHOOTING.md` where it still applies.
+
+**A tool download fails (for example a `dl.k8s.io` TLS error, or `cdn.dl.k8s.io` does not resolve).** Some home
+routers and DNS filters block the k8s.io download CDN. Install the tool another way and point Core1 at it in `.env`:
+
+```
+brew install kubectl
+echo 'KUBECTL_BIN=/opt/homebrew/bin/kubectl' >> .env
+```
+
+`K3D_BIN` and `HELM_BIN` work the same way. The binary is copied into `.bin`. Nothing else changes.
+
+**A pod is stuck in ImagePullBackOff on `registry.k8s.io`.** Same cause, seen from the cluster node. v1 pulled such
+images on the host and imported them into the cluster (`prepull_via_host` in `scripts/obs-install.sh`). If the host
+cannot pull either, the network is the problem.
+
+**`k3d image import` fails with "content digest ... not found".** The containerd image store saves multi-arch images
+in a way k3d cannot import. v2 pushes to the local registry instead. If an import is ever needed, save a
+single-platform tar first (`docker save --platform linux/arm64`).
+
+**"Permission denied" running `./core1` or a script.** Some editors and sync tools drop the executable bit or write
+0600 files. `chmod +x core1`. Git stores the bit, so a fresh clone is fine.
+
+**A port is already in use.** `./core1 doctor` names it. Set `CORE1_PORT_BASE` in `.env` (see `.env.example`), then
+`./core1 nuke` and `./core1 up`. Host ports bind to 127.0.0.1 only.
+
+**Everything is slow or pods are evicted.** Docker Desktop memory is too low. See the settings table above.
 
 ## Licence note
 

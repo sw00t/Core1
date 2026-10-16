@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# core1: the single entrypoint. Finds Python 3.11, keeps .venv in step with cli/requirements*.txt,
+# then runs the CLI. Works with macOS bash 3.2.
+#
+#   ./core1 <command> [args]              the CLI (./core1 --help)
+#   ./core1 --dev-python <python args>    python from .venv with dev dependencies (used by make test)
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VENV="$ROOT/.venv"
+WANT_PY="3.11"
+
+die() { printf 'core1: %s\n' "$*" >&2; exit 1; }
+
+env_file_value() { # KEY: value from .env, if set there
+  [ -f "$ROOT/.env" ] || return 0
+  sed -n "s/^$1=//p" "$ROOT/.env" | tail -1 | tr -d '"'"'"
+}
+
+find_python() {
+  local c
+  for c in "${CORE1_PYTHON:-}" "$(env_file_value CORE1_PYTHON)" /opt/homebrew/bin/python3.11 "$(command -v python3.11 || true)"; do
+    [ -n "$c" ] && [ -x "$c" ] || continue
+    if [ "$("$c" -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null)" = "$WANT_PY" ]; then
+      echo "$c"; return 0
+    fi
+  done
+  die "Python $WANT_PY not found. Install it (brew install python@3.11) or set CORE1_PYTHON in .env"
+}
+
+sha_of() { shasum -a 256 "$1" | awk '{print $1}'; }
+
+ensure_venv() { # REQUIREMENTS_FILE
+  local req="$1" stamp="$VENV/.stamp-$(basename "$1")" want
+  want=$(sha_of "$req")
+  if [ ! -x "$VENV/bin/python" ] || [ "$("$VENV/bin/python" -c 'import sys; print("%d.%d" % sys.version_info[:2])')" != "$WANT_PY" ]; then
+    rm -rf "$VENV"
+    printf 'core1: creating .venv with %s\n' "$(find_python)" >&2
+    "$(find_python)" -m venv "$VENV"
+  fi
+  if [ "$(cat "$stamp" 2>/dev/null)" != "$want" ]; then
+    printf 'core1: installing %s into .venv\n' "${req#$ROOT/}" >&2
+    "$VENV/bin/python" -m pip install --quiet --disable-pip-version-check --require-virtualenv -r "$req"
+    echo "$want" > "$stamp"
+  fi
+}
+
+export PYTHONPATH="$ROOT/cli${PYTHONPATH:+:$PYTHONPATH}"
+export PYTHONDONTWRITEBYTECODE=1
+
+if [ "${1:-}" = "--dev-python" ]; then
+  shift
+  ensure_venv "$ROOT/cli/requirements-dev.txt"
+  exec "$VENV/bin/python" "$@"
+fi
+
+ensure_venv "$ROOT/cli/requirements.txt"
+exec "$VENV/bin/python" -m core1 "$@"
