@@ -118,7 +118,7 @@ Phase 2 (platform core), after S approves phase 1 and the phase 2 plan.
 
 | Criterion | Result |
 |---|---|
-| Argo CD shows all platform apps synced in stage and prod | ACCEPTANCE_RESULT |
+| Argo CD shows all platform apps synced in stage and prod | Clean local clone of `f3513d5`, empty Docker (0 containers, images, volumes), one `./core1 up`: green in 536 s with 22 of 22 Applications Synced and Healthy at `main` HEAD (mgmt 8, stage 7, prod 7). `test smoke` passed |
 | SSO works | `platform-admin` and `platform-viewer` log in through Keycloak; admin may sync (HTTP 200), viewer is refused (HTTP 403) |
 | A policy-violating PR fails CI | `core1-gitops` PR #9: CI failed on the Kyverno gate naming three violations (no limits, `latest` tag, root); closed unmerged |
 
@@ -136,6 +136,8 @@ consume.
   validates them.
 - Keycloak scopes: custom realm scopes replace the built-in `profile` and `email`; mappers moved to the client.
 - Clean clone: bootstrap applied Argo CD's overlay before its CRDs existed; bootstrap now applies only the base.
+- Clean clone: `kc.sh import --dir` ignores files not named `<realm>-realm.json`, so a fresh Keycloak had no realm.
+  The working copy hid it (realm left from an earlier start-up import). File renamed; unit test guards it.
 
 ### Memory
 
