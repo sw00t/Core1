@@ -7,7 +7,9 @@ assignments. The full design is in `DESIGN.md`. Read it before doing anything.
 
 - Do not make assumptions. When uncertain, stop and ask S.
 - Work only on the `v2` branch. Never rewrite or delete the `v1-frozen` tag.
-- Core1-agent and the `cascadia-activation-config` repo are out of scope. Do not read, modify, or depend on them.
+- Agents live in their own repos: `Core1_Incident-Agent` (examiner) and `Core1_Observability-Agent` (responder).
+  `docs/system.md` is the line between the three repos. Core1 holds no agent code and no ground truth. Do not
+  modify the agent repos or `cascadia-activation-config` from here.
 - Follow the phases in `DESIGN.md` section 13 in order. Do not start a phase until S approves the previous one.
 - Start each phase in plan mode and get S's approval of the plan before editing files.
 - Ask before anything destructive or outward-facing: deleting clusters or volumes, force-pushing, creating or deleting
@@ -15,7 +17,7 @@ assignments. The full design is in `DESIGN.md`. Read it before doing anything.
 - Verify every third-party component (maintenance status, licence, arm64 image) before pinning it in `versions.env`.
   Record the result in `docs/decisions.md`.
 - Desired state changes go through PRs to the GitOps repo. No direct `kubectl apply` to stage or prod outside
-  bootstrap and the scenario engine's labelled fault injection.
+  bootstrap and the labelled fault primitives.
 - Never commit secrets. Tokens live in OpenBao or a git-ignored `.env`.
 
 ## Writing style for all files and messages
@@ -27,7 +29,7 @@ assignments. The full design is in `DESIGN.md`. Read it before doing anything.
 ## Stack
 
 - macOS (M3 Pro, 36 GB), Docker Desktop, k3d (pinned in `.bin`), three clusters: mgmt, stage, prod.
-- Python for services (FastAPI), mocks, CLI (Typer), traffic generator, scenario engine.
+- Python for services (FastAPI), mocks, CLI (Typer), traffic generator, fault primitives.
 - GitHub for all git, PRs, and CI.
 
 ## Progress tracking

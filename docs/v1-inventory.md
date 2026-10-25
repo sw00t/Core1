@@ -53,7 +53,7 @@ Phase numbers refer to `DESIGN.md` section 13.
 | `scripts/reset.sh` | rewrite (1 to 8) | Becomes the reset tiers. Its `push-main --force` to the config repo remote must not carry over |
 | `scripts/loadgen.sh` | delete (6) | Traffic generator runs in mgmt |
 | `scripts/agent-kubeconfig.sh` | rewrite (8) | Read-only identity per cluster |
-| `scripts/scenario.py` | rewrite (7) | Scenario engine. The `kubectl exec` fault switch becomes the `fault-endpoint` injection path |
+| `scripts/scenario.py` | split (7) | The `kubectl exec` fault switch becomes the `fault-endpoint` primitive here. Scenario selection, markers and answer files move to `Core1_Incident-Agent` (`docs/system.md`) |
 | `scripts/gen_dashboard.py` | rewrite (3, 6) | Core dashboard generator plus pack dashboard generators |
 
 ## Manifests and config
@@ -76,7 +76,7 @@ Phase numbers refer to `DESIGN.md` section 13.
 | `config-repo-template/README.md` | rewrite (6) | Telco narrative for the pack README |
 | `config-repo-template/.gitignore` | rewrite (6) | Goes with the template |
 | `config-repo-seed/history.json` | rewrite (6) | Telco lived-in history moves to the telco pack |
-| `scenarios/scenarios.json` | rewrite (7) | The five scenarios become telco pack YAML, decoy included |
+| `scenarios/scenarios.json` | move (7) | The five scenarios, decoy included, move to `Core1_Incident-Agent` under `scenarios/telco/`. Ground truth leaves Core1 |
 
 ## Services and tests
 
@@ -106,7 +106,7 @@ Phase numbers refer to `DESIGN.md` section 13.
 | `status` | rewrite (1) | `core1 status` |
 | `endpoints` | rewrite (1) | `core1 endpoints` |
 | `agent-kubeconfig` | rewrite (8) | Part of `core1 up` and the contract |
-| `scenario`, `scenarios`, `scenario-1` to `scenario-5` | rewrite (7) | `core1 scenario list/run` |
+| `scenario`, `scenarios`, `scenario-1` to `scenario-5` | split (7) | `core1 fault` here; scenario runs in `Core1_Incident-Agent` |
 | `verify`, `verify-quick`, `test` | rewrite (1, 8) | `core1 test smoke/all` |
 | `diag` | rewrite (backlog) | Candidate `core1 diag` |
 | `disk` | delete (1) | Disk ceiling removed |
@@ -120,7 +120,8 @@ Phase numbers refer to `DESIGN.md` section 13.
 - Cascadia Mobile narrative: root `README.md` intro, `config-repo-template/README.md`.
 - Seeded history: `config-repo-seed/history.json` (number-port batch, device launch weekend, plan catalogue).
 - Freeze window "Q4 device launch weekend" in `change-freeze.json`.
-- The five scenarios in `scenarios/scenarios.json`, with their commit authors and messages, and the decoy.
+- The five scenarios in `scenarios/scenarios.json`, with their commit authors and messages, and the decoy. These go to
+  `Core1_Incident-Agent`, not to the pack (decided 2026-10-25).
 - Recording rules `cascadia:activations_per_min`, `cascadia:failed_activations_per_min`.
 - Dashboard title "Cascadia Mobile / Activation platform", the activations row, `cascadia` tag.
 - `inventory.py`: ICCID and MSISDN generation, `PLAN-xxx` codes, "no SIM stock" message.
@@ -133,7 +134,7 @@ Phase numbers refer to `DESIGN.md` section 13.
 ## Out of scope reference
 
 `scripts/reset.sh` and `scripts/scenario.py push-main` push the local config repo to its `origin` when one is set.
-In v1 that remote was `cascadia-activation-config`, which belongs to the paused Core1-agent. v2 does not use it.
+In v1 that remote was `cascadia-activation-config`, which belongs to the v1 responder (`Core1_Incident-Agent` tag `v1-frozen`). v2 does not use it.
 
 ## Rationale carried from v1 `docs/DESIGN.md`
 

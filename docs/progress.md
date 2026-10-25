@@ -155,3 +155,26 @@ Phase 3 (observability), after S approves phase 2 and the phase 3 plan.
 2. GitHub tokens expire 2026-11-15. `doctor` warns 7 days ahead. Fine, or a longer expiry?
 3. `kyverno.io/v1` ClusterPolicy is deprecated in Kyverno 1.19. Migrate to ValidatingPolicy now, or leave it in the
    backlog?
+
+## 2026-10-25: Repo split (design only, no phase work)
+
+### Decided with S
+
+- Three repos. Core1 is the platform. `Core1_Incident-Agent` (renamed from `Core1-agent`) becomes the examiner:
+  scenario catalog, injection, ground truth, scoring. `Core1_Observability-Agent` (new) becomes the responder:
+  always on, triggers, investigation, durable memory, fix PRs, sandbox cleanup, and audits of the evaluators.
+- Core1 keeps fault primitives and the labelled injection paths. Scenarios and ground truth leave Core1.
+- The line is written down in `docs/system.md`.
+
+### Changed
+
+- `DESIGN.md`: sections 1, 2, 3, 4, 5, 8, 9, 10, 12 and the phase 7 row follow the split. Phase 7 is now "Fault
+  primitives".
+- `CLAUDE.md`: the out-of-scope rule now names both agent repos and points at `docs/system.md`.
+- `docs/v1-inventory.md`: `scenarios/scenarios.json` and the scenario side of `scripts/scenario.py` move to
+  `Core1_Incident-Agent`.
+- `README.md`: pointer to `docs/system.md`; `observability/` is the telemetry stack, not the agent.
+
+### Next
+
+Phase 3 is unchanged. The CLI stub rename is in `docs/backlog.md`.

@@ -3,6 +3,9 @@
 Core1 is a reusable, enterprise-shaped lab for interview take-home assignments. A generic platform sits at the core.
 Industry packs (telco, retail) layer on top and swap cleanly. The design is in `DESIGN.md`.
 
+No agent code here. `Core1_Incident-Agent` injects scenarios and scores; `Core1_Observability-Agent` responds.
+`docs/system.md` draws the line between the three repos.
+
 **Status:** v2 is being built on the `v2` branch, phase by phase (`DESIGN.md` section 13, progress in
 `docs/progress.md`). Phases 1 and 2 are in: three clusters, a registry, and the platform core managed by Argo CD
 from `core1-gitops`. The working v1 (single cluster, Cascadia Mobile telco skin, five scenarios) is frozen at tag
@@ -68,7 +71,8 @@ cli/core1/            the CLI (Typer)
 cli/tests/            CLI unit tests (make test)
 gitops/               template for core1-gitops: bootstrap, platform components, policies, CI
 versions.env          pinned host tools and images; verification in docs/decisions.md
-docs/                 progress, decisions, host, sizing, v1 inventory, backlog
+docs/                 system (Core1 and its agents), progress, decisions, host, sizing, v1 inventory, backlog
 ```
 
 Most other folders are v1 material waiting for their phase. `docs/v1-inventory.md` says what happens to each.
+`observability/` is the v1 telemetry stack, not the observability agent. It moves into `gitops/platform/` in phase 3.

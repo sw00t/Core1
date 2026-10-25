@@ -13,3 +13,6 @@ Items outside the current phase. Each line says where it came from.
 - Keycloak realm is replaced on every pod start (`import --override`). Fine for a lab; a real estate would use
   keycloak-config-cli or the operator's realm import. From phase 2.
 - `core1 creds` is not in the `DESIGN.md` section 12 CLI list; add it there. From phase 2.
+- Rename the CLI stub `core1 scenario list|run` to `core1 fault list|inject|clear` (`DESIGN.md` section 12) and
+  update `cli/tests/test_cli.py`. Scenarios moved to `Core1_Incident-Agent`. Do it at the start of phase 7. From the
+  2026-10-25 repo split.

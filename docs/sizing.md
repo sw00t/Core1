@@ -93,7 +93,7 @@ The rest is an estimate, not a measurement. Phase 3 measures it.
 - 21 GiB is left for L1 to L3 after the empty clusters.
 - Planning ranges for the full profile, from typical idle footprints with lab-sized limits:
   mgmt components (Argo CD, Keycloak, OpenBao, ESO, Prometheus receiver, Alertmanager, Loki, Tempo, Grafana,
-  mocks, registry, traffic generator, scenario engine) about 4.5 to 6 GiB. Each workload cluster (CNPG, Redpanda,
+  mocks, registry, traffic generator, fault endpoint) about 4.5 to 6 GiB. Each workload cluster (CNPG, Redpanda,
   Valkey, Kyverno, cert-manager, Gateway API, Prometheus agent, OTel Collector, Alloy, ten app services) about 4 to
   5 GiB. Total about 15 to 18 GiB including the clusters.
 - On these estimates the full profile fits in 24 GiB with a few GiB to spare. The largest uncertainties are Redpanda
