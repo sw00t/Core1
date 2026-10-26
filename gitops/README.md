@@ -14,6 +14,11 @@ ci/                                 pinned CI tools and the validation script
 .core1/seed.json                    which Core1 template this content came from
 ```
 
+## Who changes it
+
+People and agents, through the same path: a branch, a pull request, CI, review, merge. Argo CD applies what reaches
+`main`. Nothing else changes desired state.
+
 ## Ownership
 
 Core1 owns `bootstrap/`, `platform/`, `policies/`, `ci/`, `.github/`, `.core1/`, `.gitignore` and this README.
